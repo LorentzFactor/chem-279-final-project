@@ -1,0 +1,6 @@
+{   
+    "atoms_file_path" : "atoms/HF.xyz",
+    "output_file_path" : "student_output/hw_4_1/HF.hdf5",
+    "num_alpha_electrons" : 4,
+    "num_beta_electrons" : 4
+}
