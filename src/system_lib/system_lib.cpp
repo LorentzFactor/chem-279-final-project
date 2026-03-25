@@ -134,4 +134,30 @@ namespace system_lib {
         // Final, construct and return system
         return System(atoms);
     }
+
+    arma::mat System::compute_overlap_matrix() const {
+
+        std::vector<GaussianContracted> basis_functions{};
+
+        for(const auto& atom: atoms_) {
+            for (const auto& orbital: atom.get_atomic_orbitals()) {
+                basis_functions.push_back(orbital);
+            }
+        }
+
+        // Initialize overlap matrix - we initialize to ones since we will
+        // be performing multiplicative operations on the data
+        arma::mat S = arma::ones(basis_functions.size(), basis_functions.size());
+
+        // Iterate through each combination of momentums to generate the matrix element-wise
+        for (int i = 0; i < basis_functions.size(); i++) {
+            for (int j = i; j < basis_functions.size(); j++) {
+                auto orbital_i = basis_functions.at(i);
+                auto orbital_j = basis_functions.at(j);
+                S(i, j) = integrate_product(orbital_i, orbital_j);
+                S(j, i) = S(i, j);
+            }
+        }
+        return S;
+    }
 }

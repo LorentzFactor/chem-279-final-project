@@ -34,8 +34,11 @@ int main(int argc, char *argv[]) {
   int p = config["num_alpha_electrons"];
   int q = config["num_beta_electrons"];
 
-  system_lib::System::from_files(atoms_file_path, "./basis");
+  system_lib::System sys = system_lib::System::from_files(atoms_file_path, "./basis");
 
+  arma::mat S = sys.compute_overlap_matrix();
+
+  std::cout << S << std::endl;
   // check that output dir exists
   if (!fs::exists(output_file_path.parent_path())){
       fs::create_directories(output_file_path.parent_path()); 

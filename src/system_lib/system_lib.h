@@ -30,6 +30,8 @@ namespace system_lib {
             Atom(std::array<double,3> position, short atomic_number, GaussianTemplate s_basis, GaussianTemplate p_basis);
             static std::string get_number_symbol(const short& atomic_number);
             std::string get_symbol() const {return atomic_symbol_;};
+            std::vector<GaussianContracted> get_atomic_orbitals() const {return atomic_orbitals_;};
+            std::vector<std::string> get_orbital_names() const {return orbital_names_;};
     };
 
     struct System {
@@ -38,5 +40,6 @@ namespace system_lib {
         public:
             System(std::vector<Atom> atoms): atoms_(atoms){};
             static System from_files(std::string atoms_filepath, std::string basis_directory);
+            arma::mat compute_overlap_matrix() const;
     };
 }
