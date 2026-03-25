@@ -16,6 +16,7 @@ find_package(Armadillo REQUIRED)
 find_package(Eigen3 3.4 REQUIRED NO_MODULE)
 find_package(BLAS REQUIRED)
 find_package(LAPACK REQUIRED)
+find_package(OpenMP REQUIRED)
 
 add_library(common INTERFACE)
 
@@ -24,6 +25,7 @@ target_link_libraries(common INTERFACE
     armadillo
     nlohmann_json::nlohmann_json
     HDF5::HDF5
+    OpenMP::OpenMP_CXX
 )
 
 target_compile_definitions(common INTERFACE 
@@ -37,4 +39,20 @@ link_libraries(common)
 
 # If Needed Make Modifications below this line 
 
+add_library(integration_tools src/integration_tools/integration_tools.cpp)
+add_library(gaussian_lib
+    src/gaussian_lib/gaussian_primitive.cpp
+    src/gaussian_lib/normed_gaussian_primitive_3d.cpp
+    src/gaussian_lib/gaussian_contracted.cpp
+)
+add_library(system_lib src/system_lib/system_lib.cpp)
+
+target_include_directories(integration_tools PUBLIC ${PROJECT_SOURCE_DIR}/src)
+target_include_directories(gaussian_lib PUBLIC ${PROJECT_SOURCE_DIR}/src)
+target_include_directories(system_lib PUBLIC ${PROJECT_SOURCE_DIR}/src)
+
 add_executable(hw_4_1 src/hw_4_1.cpp)
+
+target_link_libraries(gaussian_lib PRIVATE integration_tools)
+target_link_libraries(system_lib PRIVATE gaussian_lib)
+target_link_libraries(hw_4_1 PRIVATE system_lib)

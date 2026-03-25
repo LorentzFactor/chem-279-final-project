@@ -7,6 +7,8 @@
 #include <highfive/H5File.hpp>
 #include <nlohmann/json.hpp>
 
+#include "system_lib/system_lib.h"
+
 namespace fs = std::filesystem;
 using json = nlohmann::json;
 
@@ -32,6 +34,7 @@ int main(int argc, char *argv[]) {
   int p = config["num_alpha_electrons"];
   int q = config["num_beta_electrons"];
 
+  system_lib::System::from_files(atoms_file_path, "./basis");
 
   // check that output dir exists
   if (!fs::exists(output_file_path.parent_path())){
