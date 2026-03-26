@@ -1,8 +1,11 @@
 #pragma once
 
+#include <limits>
 #include <cmath>
+#include <math.h>
 #include <numeric>
 #include <iomanip>
+#include <armadillo>
 #include "integration_tools/integration_tools.h"
 #include <vector>
 
@@ -41,6 +44,7 @@ namespace gaussian_lib {
         public:
             std::array<double,3> center;
             std::array<char,3> momentum;
+            char shell;
 
             GaussianContracted(
                 const std::array<double,3>& center,
@@ -84,4 +88,10 @@ namespace gaussian_lib {
     double integrate_product(const NormedGaussianPrimitive3d& ga, const NormedGaussianPrimitive3d& gb);
 
     double integrate_product(const GaussianContracted& ga, const GaussianContracted& gb);
+
+    double calculate_gamma_base_term(
+        double sigma_A, double sigma_B,
+        const std::array<double,3>& RA, const std::array<double,3>& RB
+    );
+    double calculate_gamma(const GaussianContracted& ga, const GaussianContracted& gb);
 }

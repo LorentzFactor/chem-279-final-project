@@ -25,21 +25,57 @@ namespace system_lib {
             };
             std::vector<GaussianContracted> atomic_orbitals_; // A vector of the atom's orbitals
             std::vector<std::string> orbital_names_; // A vector of the same length as orbitals with their names
+            inline static const std::unordered_map<std::string, double> sI_plus_A_ {
+                {"H", 7.176},
+                {"C", 14.051},
+                {"N", 19.361},
+                {"O", 25.390},
+                {"F", 32.272},
+            };
+            inline static const std::unordered_map<std::string, double> pI_plus_A_ {
+                {"C", 5.572},
+                {"N", 7.275},
+                {"O", 9.111},
+                {"F", 11.080}
+            };
+            inline static const std::unordered_map<std::string, double> neg_beta_ {
+                {"H", -9},
+                {"C", -21},
+                {"N", -25},
+                {"O", -31},
+                {"F", -39},
+            };
+            inline static const std::unordered_map<std::string, double> Z_A {
+                {"H", 1},
+                {"C", 4},
+                {"N", 5},
+                {"O", 6},
+                {"F", 7},
+            };
         public:
             Atom(std::array<double,3> position, short atomic_number, GaussianTemplate s_basis);
             Atom(std::array<double,3> position, short atomic_number, GaussianTemplate s_basis, GaussianTemplate p_basis);
             static std::string get_number_symbol(const short& atomic_number);
+            double get_atom_constant(const std::string& const_name) const;
             std::string get_symbol() const {return atomic_symbol_;};
             std::vector<GaussianContracted> get_atomic_orbitals() const {return atomic_orbitals_;};
+            int num_orbitals() const {return atomic_orbitals_.size();};
             std::vector<std::string> get_orbital_names() const {return orbital_names_;};
     };
 
     struct System {
         private:
             std::vector<Atom> atoms_;
+            size_t num_orbitals_;
+            std::vector<std::array<size_t, 2>> atom_orbital_idxs;
         public:
-            System(std::vector<Atom> atoms): atoms_(atoms){};
+            System(const std::vector<Atom>& atoms);
             static System from_files(std::string atoms_filepath, std::string basis_directory);
             arma::mat compute_overlap_matrix() const;
+            arma::mat compute_gamma_matrix() const;
+            arma::mat compute_reduced_gamma_matrix() const;
+            arma::mat compute_beta_matrix() const;
+            std::pair<arma::mat,arma::mat> compute_cndo_f_matrix(const arma::mat& p_alpha, const arma::mat& p_beta) const;
+            size_t num_orbitals() const;
     };
 }
