@@ -64,21 +64,49 @@ namespace system_lib {
     };
 
     struct System {
-        private:
+        protected:
             std::vector<Atom> atoms_;
             size_t num_orbitals_;
             std::vector<std::array<size_t, 2>> atom_orbital_idxs;
+            static std::vector<Atom> atoms_from_files_(std::string atoms_filepath, std::string basis_directory);
         public:
             System(const std::vector<Atom>& atoms);
-            static System from_files(std::string atoms_filepath, std::string basis_directory);
             arma::mat compute_overlap_matrix() const;
+            size_t num_orbitals() const;
+            virtual double compute_electronic_energy() const = 0;
+            double compute_nuclear_energy() const;
+            double compute_total_energy() const;
+    };
+
+    struct CNDO2System : public System {
+        private:
+            arma::mat p_alpha_;
+            arma::mat p_beta_;
+            arma::mat f_alpha_;
+            arma::mat f_beta_;
+            double p_;
+            double q_;
+        protected:
+            std::pair<arma::mat,arma::mat> compute_cndo_f_matrix_internal(
+                const arma::mat& p_alpha,
+                const arma::mat& p_beta
+            ) const;
+        public:
+            CNDO2System(const std::vector<Atom>& atoms, int p, int q);
+            static CNDO2System from_files(std::string atoms_filepath, std::string basis_directory, int p, int q);
+            
+            void set_p(const arma::mat& new_p_alpha, const arma::mat& new_p_beta);
+            const arma::mat& get_p_alpha() const {return p_alpha_;};
+            const arma::mat& get_p_beta() const {return p_beta_;};
+            const arma::mat& get_f_alpha() const {return f_alpha_;};
+            const arma::mat& get_f_beta() const {return f_beta_;};
+            
             arma::mat compute_gamma_matrix() const;
             arma::mat compute_reduced_gamma_matrix() const;
             arma::mat compute_beta_matrix() const;
-            double compute_nuclear_energy() const;
-            std::pair<arma::mat,arma::mat> compute_cndo_f_matrix(const arma::mat& p_alpha, const arma::mat& p_beta) const;
-            std::pair<arma::mat,arma::mat> compute_h_core() const;
-            size_t num_orbitals() const;
+            std::pair<arma::mat,arma::mat> compute_cndo_f_matrix() const;
+            arma::mat compute_h_core() const;
+            double compute_electronic_energy() const override;
     };
 
     double distance(const Atom& a1, const Atom& a2);

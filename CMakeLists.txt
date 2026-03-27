@@ -48,6 +48,7 @@ add_library(gaussian_lib
 add_library(system_lib
     src/system_lib/atom.cpp
     src/system_lib/system.cpp
+    src/system_lib/cndo2_system.cpp
 )
 
 target_include_directories(integration_tools PUBLIC ${PROJECT_SOURCE_DIR}/src)
