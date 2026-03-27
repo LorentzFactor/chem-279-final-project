@@ -22,10 +22,10 @@ namespace system_lib {
     void CNDO2System::set_p(const arma::mat& new_p_alpha, const arma::mat& new_p_beta) {
         // Ensure density matrices are properly shaped
         if (
-            !new_p_alpha.n_cols == num_orbitals_ ||
-            !new_p_alpha.n_rows == num_orbitals_ ||
-            !new_p_beta.n_cols  == num_orbitals_ ||
-            !new_p_beta.n_rows  == num_orbitals_
+            !(new_p_alpha.n_cols == num_orbitals_) ||
+            !(new_p_alpha.n_rows == num_orbitals_) ||
+            !(new_p_beta.n_cols  == num_orbitals_) ||
+            !(new_p_beta.n_rows  == num_orbitals_)
         ) {
             throw std::runtime_error("Invalid shape for p_alpha/beta");
         }
