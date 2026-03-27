@@ -14,7 +14,7 @@ namespace {
 
         // Check for invalid input
         if (n < -1) {
-            throw("Input less than -1 not allowed for double factorial");
+            throw std::runtime_error("Input less than -1 not allowed for double factorial");
         }
 
         // Base cases
@@ -29,7 +29,7 @@ namespace {
 
         // Check for invalid input
         if (n < 0) {
-            throw("Negative input not allowed for factorial");
+            throw std::runtime_error("Negative input not allowed for factorial");
         }
 
         // Base case
@@ -47,7 +47,7 @@ namespace {
 
         // Check for invalid inputs
         if (m < 0 || n < 0 || n > m) {
-            throw("Invalid input for binomial coefficient");
+            throw std::runtime_error("Invalid input for binomial coefficient");
         }
 
         // Use the symmetry (m choose n = m choose m-n)
