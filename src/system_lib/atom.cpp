@@ -43,7 +43,7 @@ namespace system_lib {
     }
 
     /* Convert an atomic number to its symbol */
-    std::string Atom::get_number_symbol(const short& atomic_number) {
+    const std::string& Atom::get_number_symbol(const short& atomic_number) {
         return symbol_list_[atomic_number-1];
     }
 
@@ -63,5 +63,14 @@ namespace system_lib {
         else {
             throw std::runtime_error("Constant name not found");
         }
+    }
+
+    /* Compute the distance between atom a1 and atom a2. */
+    double distance(const Atom& a1, const Atom& a2) {
+        auto& ra = a1.get_atomic_orbitals().at(0).center;
+        auto& rb = a2.get_atomic_orbitals().at(0).center;
+        arma::vec3 RA = arma::vec3(ra.data());
+        arma::vec3 RB = arma::vec3(rb.data());
+        return arma::norm(RA-RB);
     }
 }

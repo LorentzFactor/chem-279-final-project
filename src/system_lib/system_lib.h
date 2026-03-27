@@ -55,12 +55,12 @@ namespace system_lib {
         public:
             Atom(std::array<double,3> position, short atomic_number, GaussianTemplate s_basis);
             Atom(std::array<double,3> position, short atomic_number, GaussianTemplate s_basis, GaussianTemplate p_basis);
-            static std::string get_number_symbol(const short& atomic_number);
+            static const std::string& get_number_symbol(const short& atomic_number);
             double get_atom_constant(const std::string& const_name) const;
             std::string get_symbol() const {return atomic_symbol_;};
-            std::vector<GaussianContracted> get_atomic_orbitals() const {return atomic_orbitals_;};
+            const std::vector<GaussianContracted>& get_atomic_orbitals() const {return atomic_orbitals_;};
             int num_orbitals() const {return atomic_orbitals_.size();};
-            std::vector<std::string> get_orbital_names() const {return orbital_names_;};
+            const std::vector<std::string>& get_orbital_names() const {return orbital_names_;};
     };
 
     struct System {
@@ -75,8 +75,11 @@ namespace system_lib {
             arma::mat compute_gamma_matrix() const;
             arma::mat compute_reduced_gamma_matrix() const;
             arma::mat compute_beta_matrix() const;
+            double compute_nuclear_energy() const;
             std::pair<arma::mat,arma::mat> compute_cndo_f_matrix(const arma::mat& p_alpha, const arma::mat& p_beta) const;
             std::pair<arma::mat,arma::mat> compute_h_core() const;
             size_t num_orbitals() const;
     };
+
+    double distance(const Atom& a1, const Atom& a2);
 }

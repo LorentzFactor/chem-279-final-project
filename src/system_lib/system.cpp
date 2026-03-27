@@ -111,6 +111,20 @@ namespace system_lib {
         return System(atoms);
     }
 
+    double System::compute_nuclear_energy() const {
+        double nuclear_energy = 0;
+        for(size_t iatom=0; iatom < atoms_.size(); ++iatom) {
+            const Atom& atom_i = atoms_[iatom];
+            double ZA = atom_i.get_atom_constant("Z_A");
+            for(size_t jatom=iatom+1; jatom < atoms_.size(); ++jatom) {
+                const Atom& atom_j = atoms_[jatom];
+                double ZB = atom_j.get_atom_constant("Z_A");
+                nuclear_energy += (ZA*ZB)/distance(atom_i, atom_j);
+            }
+        }
+        return nuclear_energy * 27.211324570273;
+    }
+
     arma::mat System::compute_overlap_matrix() const {
 
         std::vector<GaussianContracted> basis_functions{};
