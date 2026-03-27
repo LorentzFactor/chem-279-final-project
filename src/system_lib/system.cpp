@@ -50,7 +50,6 @@ namespace system_lib {
             sstream = std::stringstream(line);
             short elm = 0;
             double x,y,z=0;
-            std::cout << line << std::endl;
             sstream >> elm >> x >> y >> z;
 
             // Convert atomic number to symbol to try to find
