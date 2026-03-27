@@ -45,7 +45,10 @@ add_library(gaussian_lib
     src/gaussian_lib/normed_gaussian_primitive_3d.cpp
     src/gaussian_lib/gaussian_contracted.cpp
 )
-add_library(system_lib src/system_lib/system_lib.cpp)
+add_library(system_lib
+    src/system_lib/atom.cpp
+    src/system_lib/system.cpp
+)
 
 target_include_directories(integration_tools PUBLIC ${PROJECT_SOURCE_DIR}/src)
 target_include_directories(gaussian_lib PUBLIC ${PROJECT_SOURCE_DIR}/src)

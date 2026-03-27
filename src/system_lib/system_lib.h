@@ -76,6 +76,7 @@ namespace system_lib {
             arma::mat compute_reduced_gamma_matrix() const;
             arma::mat compute_beta_matrix() const;
             std::pair<arma::mat,arma::mat> compute_cndo_f_matrix(const arma::mat& p_alpha, const arma::mat& p_beta) const;
+            std::pair<arma::mat,arma::mat> compute_h_core() const;
             size_t num_orbitals() const;
     };
 }
