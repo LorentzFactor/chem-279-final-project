@@ -1,0 +1,30 @@
+Order of columns for Suv_RA is as follows: (u,v)
+(0,0) (0,1) (1,0) (1,1) 
+Order of columns for gammaAB_RA is as follows: (A,B)
+(0,0) (0,1) (1,0) (1,1) 
+Order of rows is as follows
+x
+y
+z
+Nuclear Repulsion Energy is 19.45895069 eV.
+Electron Energy is -60.03426719 eV.
+  Suv_RA
+        0   0.3463  -0.3463        0
+        0        0        0        0
+        0        0        0        0
+gammaAB_RA
+        0   5.4162  -5.4162        0
+        0        0        0        0
+        0        0        0        0
+gradient_nuclear
+   13.9152  -13.9152
+         0         0
+         0         0
+gradient_electronic
+  -14.3570   14.3570
+         0         0
+         0         0
+gradient
+  -0.4419   0.4419
+        0        0
+        0        0

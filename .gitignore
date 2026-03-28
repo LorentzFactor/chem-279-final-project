@@ -1,0 +1,28 @@
+# Build
+build/
+
+# Output
+student_output/
+
+# CMake stuff
+CMakeLists.txt.user
+CMakeCache.txt
+CMakeFiles
+CMakeScripts
+Testing
+Makefile
+cmake_install.cmake
+install_manifest.txt
+compile_commands.json
+CTestTestfile.cmake
+_deps
+CMakeUserPresets.json
+
+# Python
+__pycache__/
+
+# Pytest 
+.pytest_cache/
+
+# Mac
+.DS_Store

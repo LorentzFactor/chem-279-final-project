@@ -1,0 +1,18 @@
+{
+    "atomic_number" : 7,
+    "shell_momentum" : 0,
+    "contracted_gaussians" : [
+        {
+            "exponent" :  0.3780455879E+01,
+            "contraction_coefficient" : -0.9996722919E-01
+        },
+        {
+            "exponent" : 0.8784966449E+00,
+            "contraction_coefficient" : 0.3995128261E+00
+        },
+        {
+            "exponent" : 0.2857143744E+00,
+            "contraction_coefficient" : 0.7001154689E+00
+        }       
+    ]
+}
