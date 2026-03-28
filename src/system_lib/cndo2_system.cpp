@@ -38,7 +38,10 @@ namespace system_lib {
        auto new_f = compute_cndo_f_matrix_internal(p_alpha_, p_beta_);
        f_alpha_ = new_f.first;
        f_beta_ = new_f.second;
-        
+
+       // update molecular orbitals
+       arma::eig_sym(E_alpha_, mos_alpha_, f_alpha_);
+       arma::eig_sym(E_beta_, mos_beta_, f_beta_);
     }
 
     arma::mat CNDO2System::compute_gamma_matrix() const {

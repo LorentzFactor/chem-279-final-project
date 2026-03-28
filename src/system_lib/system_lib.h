@@ -84,6 +84,10 @@ namespace system_lib {
             arma::mat p_beta_;
             arma::mat f_alpha_;
             arma::mat f_beta_;
+            arma::mat mos_alpha_;
+            arma::mat mos_beta_;
+            arma::vec E_alpha_;
+            arma::vec E_beta_;
             double p_;
             double q_;
         protected:
@@ -91,6 +95,7 @@ namespace system_lib {
                 const arma::mat& p_alpha,
                 const arma::mat& p_beta
             ) const;
+
         public:
             CNDO2System(const std::vector<Atom>& atoms, int p, int q);
             static CNDO2System from_files(std::string atoms_filepath, std::string basis_directory, int p, int q);
@@ -100,6 +105,15 @@ namespace system_lib {
             const arma::mat& get_p_beta() const {return p_beta_;};
             const arma::mat& get_f_alpha() const {return f_alpha_;};
             const arma::mat& get_f_beta() const {return f_beta_;};
+
+            void set_nelectrons(int p, int q) {p_ = (double) p; q_ = (double) q;};
+            int get_nalpha() const {return (int) p_;};
+            int get_nbeta() const {return (int) q_;};
+
+            const arma::mat& get_MOs_alpha() const {return mos_alpha_;};
+            const arma::mat& get_MOs_beta() const {return mos_beta_;};
+            arma::rowvec get_E_alpha() const {return E_alpha_.as_row();};
+            arma::rowvec get_E_beta() const {return E_beta_.as_row();};
             
             arma::mat compute_gamma_matrix() const;
             arma::mat compute_reduced_gamma_matrix() const;
