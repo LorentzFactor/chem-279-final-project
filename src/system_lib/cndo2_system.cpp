@@ -190,4 +190,18 @@ namespace system_lib {
         return 0.5*(arma::accu(p_alpha_%(h_core + f_alpha_)) +\
                              arma::accu(p_beta_%(h_core+f_beta_)));
     }
+
+    arma::mat CNDO2System::get_occupied_MOs_alpha() const {
+        if (p_>0)
+            return mos_alpha_.cols(arma::span(0, p_-1));
+        else
+            return arma::zeros(num_orbitals_, num_orbitals_);
+    }
+
+    arma::mat CNDO2System::get_occupied_MOs_beta() const {
+        if (q_>0)
+            return mos_beta_.cols(arma::span(0, q_-1));
+        else
+            return arma::zeros(num_orbitals_, num_orbitals_);
+    }
 }

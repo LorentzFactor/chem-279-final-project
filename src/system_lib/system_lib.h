@@ -112,6 +112,8 @@ namespace system_lib {
 
             const arma::mat& get_MOs_alpha() const {return mos_alpha_;};
             const arma::mat& get_MOs_beta() const {return mos_beta_;};
+            arma::mat get_occupied_MOs_alpha() const;
+            arma::mat get_occupied_MOs_beta() const;
             arma::rowvec get_E_alpha() const {return E_alpha_.as_row();};
             arma::rowvec get_E_beta() const {return E_beta_.as_row();};
             
