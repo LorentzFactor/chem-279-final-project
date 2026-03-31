@@ -23,8 +23,14 @@ void write_to_high_five(File output_file, std::string name, T data) {
 };
 
 int main(int argc, char *argv[]) {
+  bool generate_densities = false;
   // Check args
-  if (argc != 2) {
+  if (argc == 3) {
+    if (argv[2][0] == 'y') {
+      generate_densities = true;
+    }
+  }
+  else if (argc != 2) {
     std::cerr << "Usage: " << argv[0] << " path/to/config" << std::endl;
     return EXIT_FAILURE;
   }
@@ -79,8 +85,6 @@ int main(int argc, char *argv[]) {
   f_alpha.save(arma::hdf5_name(output_file_path, "Fa_initial", arma::hdf5_opts::replace));
   f_beta.save(arma::hdf5_name(output_file_path, "Fb_initial", arma::hdf5_opts::replace));
 
-  std::cout << "P: " << p << " Q: " << q << std::endl;
-
   for(size_t i = 0; i < 1e3; ++i) {
 
     p_a_old = sys.get_p_alpha();
@@ -91,44 +95,6 @@ int main(int argc, char *argv[]) {
     p_beta = sys.get_occupied_MOs_beta() * sys.get_occupied_MOs_beta().t();
     
     sys.set_p(p_alpha, p_beta);
-
-    /*double energy_neutral = sys.compute_total_energy();
-    int delta = 0;
-    double energy_best = energy_neutral;
-
-    if (p != 0 && q != sys.num_orbitals() && p/2 > q/2) {
-      sys.set_nelectrons(p-1, q+1);
-      p_alpha = sys.get_occupied_MOs_alpha() * sys.get_occupied_MOs_alpha().t();
-      p_beta = sys.get_occupied_MOs_beta() * sys.get_occupied_MOs_beta().t();
-      sys.set_p(p_alpha, p_beta);
-      double energy_min = sys.compute_total_energy();
-      if (energy_min + std::numeric_limits<double>::epsilon() < energy_best) { 
-        delta = -1;
-      }
-      sys.set_nelectrons(p+1, q-1);
-    }
-
-    if (q != 0 && p != sys.num_orbitals()) {
-      sys.set_nelectrons(p+1, q-1);
-      p_alpha = sys.get_occupied_MOs_alpha() * sys.get_occupied_MOs_alpha().t();
-      p_beta = sys.get_occupied_MOs_beta() * sys.get_occupied_MOs_beta().t();
-      sys.set_p(p_alpha, p_beta);
-      double energy_plus = sys.compute_total_energy();
-      // <= here instead of < because hund's rule
-      if (energy_plus <= energy_best + std::numeric_limits<double>::epsilon()) {
-        delta = 1;
-      }
-      sys.set_nelectrons(p-1, q+1);
-    }
-    p += delta;
-    q -= delta;
-    
-
-    std::cout << "P: " << p << " Q: " << q << std::endl;
-
-    sys.set_p(p_alpha, p_beta);
-    sys.set_nelectrons(sys.get_nalpha() + delta, sys.get_nbeta() - 1);
-    */
     
     p_tot = p_alpha + p_beta;
 
@@ -155,7 +121,10 @@ int main(int argc, char *argv[]) {
 
   std::cout << "density at 0.0 1.426 -0.8876 " << sys.get_electron_density({0.0, 1.426, -0.8876}) << std::endl;
 
-  arma::cube spatial_electron_density = sys.get_electron_density_3d_grid({-3, 3}, {-3, 3}, {-3, 3}, 100);
+  if (generate_densities) {
+    arma::cube spatial_electron_density = sys.get_electron_density_3d_grid({-4, 4}, {-4, 4}, {-4, 4}, 100);
+    spatial_electron_density.save(arma::hdf5_name(output_file_path, "spatial_density", arma::hdf5_opts::replace));
+  }
 
   arma::rowvec Ea = sys.get_E_alpha();
   arma::rowvec Eb = sys.get_E_beta();
@@ -163,8 +132,7 @@ int main(int argc, char *argv[]) {
   Eb.save(arma::hdf5_name(output_file_path, "Eb", arma::hdf5_opts::replace));
   h_core.save(arma::hdf5_name(output_file_path, "H_core", arma::hdf5_opts::replace));
   S.save(arma::hdf5_name(output_file_path, "S", arma::hdf5_opts::replace));
-  reduced_gamma.save(arma::hdf5_name(output_file_path, "gamma", arma::hdf5_opts::replace));
-  spatial_electron_density.save(arma::hdf5_name(output_file_path, "spatial_density", arma::hdf5_opts::replace));
+  reduced_gamma.save(arma::hdf5_name(output_file_path, "gamma", arma::hdf5_opts::replace));    
   write_to_high_five(output_file, "electronic_energy", electronic_energy);
   write_to_high_five(output_file, "nuclear_energy", nuclear_energy);
   write_to_high_five(output_file, "total_energy", total_energy);
