@@ -208,7 +208,7 @@ namespace system_lib {
     double CNDO2System::get_electron_density(const std::array<double,3>& position) const {
         double density = 0;
         arma::mat occupied_mos = arma::join_rows(get_occupied_MOs_alpha(), get_occupied_MOs_beta());
-        for (int i = 0; i < occupied_mos.n_cols; ++i) {
+        for (int i = 0; i < 1; ++i) {
             arma::vec mo = occupied_mos.col(i);
             double mo_value = 0;
             int icur_atom = 0;
@@ -241,16 +241,19 @@ namespace system_lib {
         arma::vec sample_z = arma::linspace(z_range[0], z_range[1], nsamples_per_side);
 
         arma::cube values = arma::cube(nsamples_per_side, nsamples_per_side, nsamples_per_side);
-
-        for(int ix = 0; ix < nsamples_per_side; ++ix) {
-            double pos_x = sample_x[ix];
-            for(int iy = 0; iy < nsamples_per_side; ++iy) {
-                double pos_y = sample_y[iy];
-                for(int iz = 0; iz < nsamples_per_side; ++iz) {
-                    double pos_z = sample_z[iz];
-                    values(ix,iy,iz) = get_electron_density({pos_x, pos_y, pos_z});
+        arma::mat occupied_mos = arma::join_rows(get_occupied_MOs_alpha(), get_occupied_MOs_beta());
+        for (int i = 0; i < occupied_mos.n_cols; ++i) {
+            arma::vec mo = occupied_mos.col(i);
+            arma::cube mo_value = arma::cube(nsamples_per_side, nsamples_per_side, nsamples_per_side);
+            int icur_atom = 0;
+            for (int j = 0; j < occupied_mos.n_rows; ++j) {
+                if (atom_orbital_idxs[icur_atom][1] == j) {
+                    ++icur_atom;
                 }
+                GaussianContracted ao = atoms_[icur_atom].get_atomic_orbitals()[j-atom_orbital_idxs[icur_atom][0]];
+                mo_value += mo.at(j) * ao(sample_x, sample_y, sample_z);
             }
+            values += arma::square(mo_value);
         }
         return values;
     }

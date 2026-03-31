@@ -18,10 +18,21 @@ namespace gaussian_lib {
         arma::cube evaluations = arma::cube(x_points.size(), y_points.size(), z_points.size(), arma::fill::none);
 
         // Individually evaluate components along each dimension
-        arma::vec x_component = x_points.for_each(components_[0]);
-        arma::vec y_component = y_points.for_each(components_[1]);
+        arma::vec x_component = arma::vec(x_points.size());
+        for (int ix = 0; ix < x_points.size(); ++ix) {
+            x_component(ix) = components_[0](x_points[ix]);
+        }
+
+        arma::vec y_component = arma::vec(y_points.size());
+        for (int iy = 0; iy < y_points.size(); ++iy) {
+            y_component(iy) = components_[1](y_points[iy]);
+        }
+
         // Note that we apply the norm to the last dimension to reduce number of division operations
-        arma::vec z_component = z_points.for_each(components_[2]) / norm;
+        arma::vec z_component = arma::vec(z_points.size());
+        for (int iz = 0; iz < z_points.size(); ++iz) {
+            z_component(iz) = components_[2](z_points[iz]);
+        }
 
         // slice along z dimension, take tensor product of other two for parallelism
         for(size_t iz=0; iz<z_points.size(); ++iz) {
@@ -29,7 +40,7 @@ namespace gaussian_lib {
             evaluations.slice(iz) = z_component_value * (x_component * y_component.t());
         }
 
-        return evaluations;
+        return evaluations / norm;
     }
 
     double integrate_product(const NormedGaussianPrimitive3d& ga, const NormedGaussianPrimitive3d& gb) {
