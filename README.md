@@ -1,1 +1,1 @@
-[![Review Assignment Due Date](https://classroom.github.com/assets/deadline-readme-button-22041afd0340ce965d47ae6ef1cefeee28c7c493a6346c4f15d667ab976d596c.svg)](https://classroom.github.com/a/tx-A2ZHi)
+For part 2, I decided to create a 2/3 dimensional grid of the electron density for each molecule. I added the generated density evaluations to the output high five file. These are then used by the visuals.ipynb notebook to create two visualizations of a water molecule's (valence) electron cloud. To build the electron density, pass `y` as a third commandline argument.
