@@ -33,7 +33,14 @@ namespace gaussian_lib {
 
             // Evaluate the 3D Gaussian primitive at a given position x
             double operator()(std::array<double,3> x) const;
-            const GaussianPrimitive& component(int i) const { return components_[i]; }
+            const GaussianPrimitive& component(int i) const { return components_[i]; };
+
+            // Efficiently evaluate the 3d primitive over a grid of points
+            arma::cube operator()(
+                const arma::vec& x_points,
+                const arma::vec& y_points,
+                const arma::vec& z_points
+            ) const;
     };
 
     struct GaussianContracted {
@@ -60,6 +67,13 @@ namespace gaussian_lib {
 
             // Evaluate the contracted Gaussian at a given position x
             double operator()(std::array<double,3> x) const;
+
+            // Efficiently evaluate the contracted gaussian over a grid of points
+            arma::cube operator()(
+                const arma::vec& x_points,
+                const arma::vec& y_points,
+                const arma::vec& z_points
+            ) const;
 
             void recenter(std::array<double,3> new_position);
     };

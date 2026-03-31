@@ -9,6 +9,18 @@ namespace gaussian_lib {
         return f_x;
     }
 
+    arma::cube GaussianContracted::operator()(
+        const arma::vec& x_points,
+        const arma::vec& y_points,
+        const arma::vec& z_points
+    ) const {
+        arma::cube evaluations = arma::cube(x_points.size(), y_points.size(), z_points.size());
+        for(size_t i=0; i < weights_.size(); i++) {
+            evaluations += weights_.at(i) * components_.at(i)(x_points, y_points, z_points);
+        }
+        return evaluations;
+    }
+
     double integrate_product(const GaussianContracted& ga, const GaussianContracted& gb) {
         double integral = 0;
         for (size_t i = 0; i < ga.size(); i++) {

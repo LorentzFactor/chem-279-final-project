@@ -3,6 +3,7 @@
 #include <filesystem>
 #include<iostream>
 #include <fstream>
+#include <memory>
 
 #include <string>
 #include <vector>
@@ -116,6 +117,14 @@ namespace system_lib {
             arma::mat get_occupied_MOs_beta() const;
             arma::rowvec get_E_alpha() const {return E_alpha_.as_row();};
             arma::rowvec get_E_beta() const {return E_beta_.as_row();};
+
+            double get_electron_density(const std::array<double,3>& position) const;
+            arma::cube get_electron_density_3d_grid(
+                const std::array<double,2>& x_range,
+                const std::array<double,2>& y_range,
+                const std::array<double,2>& z_range,
+                int nsamples_per_side
+            ) const;
             
             arma::mat compute_gamma_matrix() const;
             arma::mat compute_reduced_gamma_matrix() const;

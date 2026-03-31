@@ -1,6 +1,8 @@
 #include <fstream>
 #include <iostream>
 #include <stdexcept>
+#include <iomanip>
+#include <limits>
 
 #include <armadillo>
 
@@ -58,66 +60,89 @@ int main(int argc, char *argv[]) {
   system_lib::CNDO2System sys = system_lib::CNDO2System::from_files(atoms_file_path, "./basis", p, q);
 
   arma::mat S = sys.compute_overlap_matrix();
-  std::cout << S << std::endl;
-
   arma::mat reduced_gamma = sys.compute_reduced_gamma_matrix();
   arma::mat gamma = sys.compute_gamma_matrix();
-  std::cout << gamma << std::endl;
-
   arma::mat beta = sys.compute_beta_matrix();
-  std::cout << beta << std::endl;
 
-  arma::mat p_alpha = arma::zeros(sys.num_orbitals(), sys.num_orbitals());
-  arma::mat p_beta = arma::zeros(sys.num_orbitals(), sys.num_orbitals());
+  arma::mat p_alpha = 5*arma::mat(sys.num_orbitals(), sys.num_orbitals(), arma::fill::randu) * (p/(sys.num_orbitals()*sys.num_orbitals()));
+  arma::mat p_beta = arma::mat(sys.num_orbitals(), sys.num_orbitals(), arma::fill::randu) *(q/(sys.num_orbitals()*sys.num_orbitals()));
   arma::mat p_tot = p_alpha + p_beta;
+  sys.set_p(p_alpha, p_beta);
 
   arma::mat p_a_old;
   arma::mat p_b_old;
   arma::mat p_tot_old;
 
-  arma::mat f_alpha = sys.get_f_alpha();
-  arma::mat f_beta = sys.get_f_beta();
+  const arma::mat& f_alpha = sys.get_f_alpha();
+  const arma::mat& f_beta = sys.get_f_beta();
 
   f_alpha.save(arma::hdf5_name(output_file_path, "Fa_initial", arma::hdf5_opts::replace));
   f_beta.save(arma::hdf5_name(output_file_path, "Fb_initial", arma::hdf5_opts::replace));
-  
-  std::cout << f_alpha << std::endl;
-  std::cout << f_beta << std::endl;
 
-  arma::vec E_alpha;
-  arma::mat C_alpha;
-  arma::vec E_beta;
-  arma::mat C_beta;
+  std::cout << "P: " << p << " Q: " << q << std::endl;
 
   for(size_t i = 0; i < 1e3; ++i) {
-    arma::eig_sym(E_alpha, C_alpha,  sys.get_f_alpha());
-    arma::eig_sym(E_beta, C_beta, sys.get_f_beta());
 
     p_a_old = sys.get_p_alpha();
     p_b_old = sys.get_p_beta();
     p_tot_old = p_a_old + p_b_old;
 
-    p_alpha = C_alpha.cols(arma::span(0, p-1)) * C_alpha.cols(arma::span(0, p-1)).t();
-    p_beta = C_beta.cols(arma::span(0, q-1)) * C_beta.cols(arma::span(0, q-1)).t();
+    p_alpha = sys.get_occupied_MOs_alpha() * sys.get_occupied_MOs_alpha().t();
+    p_beta = sys.get_occupied_MOs_beta() * sys.get_occupied_MOs_beta().t();
+    
     sys.set_p(p_alpha, p_beta);
+
+    /*double energy_neutral = sys.compute_total_energy();
+    int delta = 0;
+    double energy_best = energy_neutral;
+
+    if (p != 0 && q != sys.num_orbitals() && p/2 > q/2) {
+      sys.set_nelectrons(p-1, q+1);
+      p_alpha = sys.get_occupied_MOs_alpha() * sys.get_occupied_MOs_alpha().t();
+      p_beta = sys.get_occupied_MOs_beta() * sys.get_occupied_MOs_beta().t();
+      sys.set_p(p_alpha, p_beta);
+      double energy_min = sys.compute_total_energy();
+      if (energy_min + std::numeric_limits<double>::epsilon() < energy_best) { 
+        delta = -1;
+      }
+      sys.set_nelectrons(p+1, q-1);
+    }
+
+    if (q != 0 && p != sys.num_orbitals()) {
+      sys.set_nelectrons(p+1, q-1);
+      p_alpha = sys.get_occupied_MOs_alpha() * sys.get_occupied_MOs_alpha().t();
+      p_beta = sys.get_occupied_MOs_beta() * sys.get_occupied_MOs_beta().t();
+      sys.set_p(p_alpha, p_beta);
+      double energy_plus = sys.compute_total_energy();
+      // <= here instead of < because hund's rule
+      if (energy_plus <= energy_best + std::numeric_limits<double>::epsilon()) {
+        delta = 1;
+      }
+      sys.set_nelectrons(p-1, q+1);
+    }
+    p += delta;
+    q -= delta;
+    
+
+    std::cout << "P: " << p << " Q: " << q << std::endl;
+
+    sys.set_p(p_alpha, p_beta);
+    sys.set_nelectrons(sys.get_nalpha() + delta, sys.get_nbeta() - 1);
+    */
+    
     p_tot = p_alpha + p_beta;
 
     std::cout << "Step: " << i+1 << std::endl;
-    std::cout << "Energy: " << sys.compute_total_energy() << std::endl;
+    std::cout << "Energy: " << std::setprecision(9) << sys.compute_total_energy() << std::endl;
 
-    /*std::cout << "C alpha: \n" << C_alpha << std::endl;
-    std::cout << "p alpha: \n" << p_alpha << std::endl;
-    std::cout << "p tot: \n" << p_tot << std::endl;*/
-    if (arma::approx_equal(p_tot, p_tot_old, "absdiff", 1e-6)) {
+    if (
+      arma::approx_equal(p_alpha, p_a_old, "absdiff", 1e-6) &&
+      arma::approx_equal(p_beta, p_b_old, "absdiff", 1e-6)
+      ) {
       std::cout <<"n iters: " << i << std::endl;
       break;
     }
   }
-
-
-  std::cout << "E alpha: \n" << E_alpha << std::endl;
-  std::cout << "P alpha prev: \n" <<p_a_old<<std::endl;
-  std::cout<< "P alpha new: \n" <<p_alpha<<std::endl;
 
   arma::mat h_core = sys.compute_h_core();
 
@@ -125,13 +150,21 @@ int main(int argc, char *argv[]) {
   double nuclear_energy = sys.compute_nuclear_energy();
   double total_energy = sys.compute_total_energy();
 
-  arma::rowvec Ea = E_alpha.as_row();
-  arma::rowvec Eb = E_beta.as_row();
+  std::cout << "total energy" << sys.compute_total_energy()<< std::endl;
+  std::cout << "P" << p << "Q" << q << std::endl;
+
+  std::cout << "density at 0.0 1.426 -0.8876 " << sys.get_electron_density({0.0, 1.426, -0.8876}) << std::endl;
+
+  arma::cube spatial_electron_density = sys.get_electron_density_3d_grid({-3, 3}, {-3, 3}, {-3, 3}, 100);
+
+  arma::rowvec Ea = sys.get_E_alpha();
+  arma::rowvec Eb = sys.get_E_beta();
   Ea.save(arma::hdf5_name(output_file_path, "Ea", arma::hdf5_opts::replace));
   Eb.save(arma::hdf5_name(output_file_path, "Eb", arma::hdf5_opts::replace));
   h_core.save(arma::hdf5_name(output_file_path, "H_core", arma::hdf5_opts::replace));
   S.save(arma::hdf5_name(output_file_path, "S", arma::hdf5_opts::replace));
   reduced_gamma.save(arma::hdf5_name(output_file_path, "gamma", arma::hdf5_opts::replace));
+  spatial_electron_density.save(arma::hdf5_name(output_file_path, "spatial_density", arma::hdf5_opts::replace));
   write_to_high_five(output_file, "electronic_energy", electronic_energy);
   write_to_high_five(output_file, "nuclear_energy", nuclear_energy);
   write_to_high_five(output_file, "total_energy", total_energy);
