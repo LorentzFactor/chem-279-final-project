@@ -39,4 +39,4 @@ link_libraries(common)
 
 # If Needed Make Modifications below this line 
 
-add_executable(hw_5_2 src/hw_5_2.cpp)
+add_executable(hw_5_2 src/hw_5_2.cpp src/integrate.cpp src/orbitals.cpp)

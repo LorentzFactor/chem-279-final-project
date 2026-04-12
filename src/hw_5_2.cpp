@@ -9,8 +9,13 @@
 #include <string>
 #include <vector>
 
+#include "integrate.h"
+#include "orbitals.h"
+
 #include <armadillo>
-#include <nlohmann/json.hpp> 
+
+#include <highfive/H5File.hpp>
+#include <nlohmann/json.hpp>
 
 namespace fs = std::filesystem;
 using json = nlohmann::json;
@@ -37,16 +42,16 @@ int main(int argc, char **argv) {
   int num_alpha_electrons = config["num_alpha_electrons"];
   int num_beta_electrons = config["num_beta_electrons"];
 
+  fs::path basis_path{"basis/"};
+  Molecule molecule(atoms_file_path, basis_path, num_alpha_electrons,
+                    num_beta_electrons);
 
-
-  int num_atoms = 0; // You will have to replace this with the
-                                      // number of atoms in the molecule
-  int num_basis_functions = 0; // you will have to replace this with the number of basis
-                       // sets in the molecule
+  int num_atoms = molecule.getNumAtoms();
+  int num_basis_functions = molecule.getN();
   int num_3D_dims = 3;
 
   // Your answers go in these objects
-  // Information about the convention of the requirements 
+  // Information about the convention of the requirements
   std::cout << "Order of columns for Suv_RA is as follows: (u,v)" << std::endl;
   for (int u = 0; u < num_basis_functions; u++) {
     for (int v = 0; v < num_basis_functions; v++) {
@@ -83,7 +88,14 @@ int main(int argc, char **argv) {
 
   // most of your code will go here
 
+  molecule.SCF(config_file_path);
 
+  molecule.electronicGradient();
+
+  Suv_RA = molecule.getGradOverlapTerm();
+  gammaAB_RA = molecule.getGradRepulsionTerm();
+  Gradient g = molecule.getGradientElectronic();
+  gradient_electronic = arma::join_vert(g.x, arma::join_vert(g.y, g.z));
 
   // You do not need to modify the code below this point
 
@@ -93,35 +105,35 @@ int main(int argc, char **argv) {
   // inspect your answer via printing
   Suv_RA.print("Suv_RA");
   gammaAB_RA.print("gammaAB_RA");
-  gradient_nuclear.print("gradient_nuclear");
+  // gradient_nuclear.print("gradient_nuclear");
   gradient_electronic.print("gradient_electronic");
-  gradient.print("gradient");
+  // gradient.print("gradient");
 
-  // check that output dir exists
-  if (!fs::exists(output_file_path.parent_path())) {
-    fs::create_directories(output_file_path.parent_path());
-  }
+  // // check that output dir exists
+  // if (!fs::exists(output_file_path.parent_path())) {
+  //   fs::create_directories(output_file_path.parent_path());
+  // }
 
-  // delete the file if it does exist (so that no old answers stay there by
-  // accident)
-  if (fs::exists(output_file_path)) {
-    fs::remove(output_file_path);
-  }
+  // // delete the file if it does exist (so that no old answers stay there by
+  // // accident)
+  // if (fs::exists(output_file_path)) {
+  //   fs::remove(output_file_path);
+  // }
 
-  // write results to file
-  Suv_RA.save(
-      arma::hdf5_name(output_file_path, "Suv_RA",
-                      arma::hdf5_opts::append + arma::hdf5_opts::trans));
-  gammaAB_RA.save(
-      arma::hdf5_name(output_file_path, "gammaAB_RA",
-                      arma::hdf5_opts::append + arma::hdf5_opts::trans));
-  gradient_nuclear.save(
-      arma::hdf5_name(output_file_path, "gradient_nuclear",
-                      arma::hdf5_opts::append + arma::hdf5_opts::trans));
-  gradient_electronic.save(
-      arma::hdf5_name(output_file_path, "gradient_electronic",
-                      arma::hdf5_opts::append + arma::hdf5_opts::trans));
-  gradient.save(
-      arma::hdf5_name(output_file_path, "gradient",
-                      arma::hdf5_opts::append + arma::hdf5_opts::trans));
+  // // write results to file
+  // Suv_RA.save(
+  //     arma::hdf5_name(output_file_path, "Suv_RA",
+  //                     arma::hdf5_opts::append + arma::hdf5_opts::trans));
+  // gammaAB_RA.save(
+  //     arma::hdf5_name(output_file_path, "gammaAB_RA",
+  //                     arma::hdf5_opts::append + arma::hdf5_opts::trans));
+  // gradient_nuclear.save(
+  //     arma::hdf5_name(output_file_path, "gradient_nuclear",
+  //                     arma::hdf5_opts::append + arma::hdf5_opts::trans));
+  // gradient_electronic.save(
+  //     arma::hdf5_name(output_file_path, "gradient_electronic",
+  //                     arma::hdf5_opts::append + arma::hdf5_opts::trans));
+  // gradient.save(
+  //     arma::hdf5_name(output_file_path, "gradient",
+  //                     arma::hdf5_opts::append + arma::hdf5_opts::trans));
 }

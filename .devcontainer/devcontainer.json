@@ -1,7 +1,9 @@
 {
     "name": "Chem x79",
     "image": "ghcr.io/berkeley-chem-179-279/dev:latest",
-    "runArgs": ["--pull=always"],
+    "runArgs": [
+        "--pull=always"
+    ],
     "customizations": {
         "vscode": {
             "extensions": [
@@ -11,11 +13,14 @@
                 "ms-python.vscode-python-envs",
                 "ms-vscode.cmake-tools",
                 "twxs.cmake",
-                "ms-vscode.cpptools",
-                "ms-vscode.cpptools-extension-pack",
-                "ms-vscode.cpptools-themes",
+                // "ms-vscode.cpptools",
+                // "ms-vscode.cpptools-extension-pack",
+                // "ms-vscode.cpptools-themes",
+                "anysphere.cpptools",
                 "ms-vscode.makefile-tools",
-                "streetsidesoftware.code-spell-checker"
+                "streetsidesoftware.code-spell-checker",
+                "vscodevim.vim",
+                "albert.TabOut"
             ]
         }
     }
