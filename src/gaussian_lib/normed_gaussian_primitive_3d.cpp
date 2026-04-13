@@ -54,6 +54,25 @@ namespace gaussian_lib {
         return integral;
     }
 
+    std::array<double,3> integrate_product_dRa(const NormedGaussianPrimitive3d& ga, const NormedGaussianPrimitive3d& gb) {
+        double Ix = integrate_product(ga.component(0), gb.component(0));
+        double Iy = integrate_product(ga.component(1), gb.component(1));
+        double Iz = integrate_product(ga.component(2), gb.component(2));
+
+        std::array<double,3> gradient{
+            integrate_product_dxa(ga.component(0), gb.component(0)) * Iy * Iz;
+            integrate_product_dxa(ga.component(1), gb.component(1)) * Ix * Iz;
+            integrate_product_dxa(ga.component(2), gb.component(2)) * Ix * Iy;
+        };
+
+        for (auto& elm : gradient) {
+            elm /= ga.norm;
+            elm /= gb.norm;
+        }
+
+        return gradient;
+    }
+
     NormedGaussianPrimitive3d::NormedGaussianPrimitive3d(const std::array<double,3> center, double exponent, const std::array<char,3> momentum)
         : center(center), exponent(exponent), momentum(momentum)
     {

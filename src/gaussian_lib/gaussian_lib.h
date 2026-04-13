@@ -98,10 +98,13 @@ namespace gaussian_lib {
 
     double numerically_integrate_product(const GaussianPrimitive& ga, const GaussianPrimitive& gb, double tol);
     double integrate_product(const GaussianPrimitive& ga, const GaussianPrimitive& gb);
+    double integrate_product_dxa(const GaussianPrimitive& ga, const GaussianPrimitive& gb);
 
     double integrate_product(const NormedGaussianPrimitive3d& ga, const NormedGaussianPrimitive3d& gb);
+    std::array<double,3> integrate_product_dRa(const NormedGaussianPrimitive3d& ga, const NormedGaussianPrimitive3d& gb);
 
     double integrate_product(const GaussianContracted& ga, const GaussianContracted& gb);
+    std::array<double,3> integrate_product_dRa(const GaussianContracted& ga, const GaussianContracted& gb);
 
     double calculate_gamma_base_term(
         double sigma_A, double sigma_B,

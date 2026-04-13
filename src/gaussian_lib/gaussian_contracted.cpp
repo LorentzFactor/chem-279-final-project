@@ -33,6 +33,21 @@ namespace gaussian_lib {
         return integral;
     }
 
+    std::array<double,3> integrate_product_dRa(const GaussianContracted& ga, const GaussianContracted& gb) {
+        std::array<double,3> gradient{0,0,0};
+        for (size_t i = 0; i < ga.size(); i++) {
+            for(size_t j = 0; j < gb.size(); j++) {
+                double d_ai = ga.get_weights()[i];
+                double d_bj = gb.get_weights()[j];
+                std::array<double,3> gradient_term = integrate_product_dRa(ga.get_components()[i], gb.get_components()[j]);
+                for(size_t idim=0; idim<3; ++idim) {
+                    gradient[idim] += gradient_term[idim];
+                }
+            }
+        }
+        return gradient;
+    }
+
     double calculate_gamma_base_term(
         double sigma_A, double sigma_B,
         const std::array<double,3>& RA, const std::array<double,3>& RB

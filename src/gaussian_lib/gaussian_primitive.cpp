@@ -102,6 +102,20 @@ namespace gaussian_lib {
         return summation;
     }
 
+    /* Compute the partial derivative of the integral of the product w.r.t x_a */
+    double integrate_product_dxa(const GaussianPrimitive& ga, const GaussianPrimitive& gb) {
+        double result = 0;
+        // First term is 0 if momentum = 0... else it's the following
+        if (ga.momentum != 0) {
+            GaussianPrimitive temp_a_term1(ga.center, ga.exponent, ga.momentum-1);
+            result = -ga.momentum * integrate_product(temp_a_term1, gb);
+        }
+        GaussianPrimitive temp_a_term2(ga.center, ga.exponent, ga.momentum+1);
+        result += 2*ga.exponent*integrate_product(temp_a_term2, gb);
+
+        return result;
+    }
+
     double numerically_integrate_product(const GaussianPrimitive& ga, const GaussianPrimitive& gb, double tol) {
         auto product = [ga, gb](double x) {
             double g1 = ga(x);

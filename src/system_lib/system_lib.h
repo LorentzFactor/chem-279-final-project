@@ -81,6 +81,7 @@ namespace system_lib {
 
     struct CNDO2System : public System {
         private:
+            // F matrix + energy states
             arma::mat p_alpha_;
             arma::mat p_beta_;
             arma::mat f_alpha_;
@@ -89,8 +90,14 @@ namespace system_lib {
             arma::mat mos_beta_;
             arma::vec E_alpha_;
             arma::vec E_beta_;
+
+            // Electron counts
             double p_;
             double q_;
+
+            // Gradients
+            arma::cube S_uv_R_;
+
         protected:
             std::pair<arma::mat,arma::mat> compute_cndo_f_matrix_internal(
                 const arma::mat& p_alpha,
@@ -104,6 +111,7 @@ namespace system_lib {
             void set_p(const arma::mat& new_p_alpha, const arma::mat& new_p_beta);
             const arma::mat& get_p_alpha() const {return p_alpha_;};
             const arma::mat& get_p_beta() const {return p_beta_;};
+
             const arma::mat& get_f_alpha() const {return f_alpha_;};
             const arma::mat& get_f_beta() const {return f_beta_;};
 
@@ -115,6 +123,7 @@ namespace system_lib {
             const arma::mat& get_MOs_beta() const {return mos_beta_;};
             arma::mat get_occupied_MOs_alpha() const;
             arma::mat get_occupied_MOs_beta() const;
+
             arma::rowvec get_E_alpha() const {return E_alpha_.as_row();};
             arma::rowvec get_E_beta() const {return E_beta_.as_row();};
 
