@@ -9,9 +9,9 @@
             "type": "cppdbg",
             "request": "launch",
             // This starts at your active file's folder (src), goes up one level, then down into build
-            "program": "${fileDirname}/../build/hw_5_2",
+            "program": "${fileDirname}/../build/geo",
             "args": [
-                "${workspaceFolder}/sample_input/hw_5_2/H2.json"
+                "${workspaceFolder}/optimize_input/H2O.json"
             ],
             "stopAtEntry": false,
             // Sets the working directory to the root of the specific example folder

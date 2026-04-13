@@ -88,14 +88,23 @@ int main(int argc, char **argv) {
 
   // most of your code will go here
 
-  molecule.SCF(config_file_path);
+  molecule.setConfigPath(config_file_path);
+  // set verbose true for printing SCF results
+  bool verbose = true;
+  molecule.SCF(verbose);
 
   molecule.electronicGradient();
+  molecule.nuclearGradient();
+  molecule.totalGradient();
 
   Suv_RA = molecule.getGradOverlapTerm();
   gammaAB_RA = molecule.getGradRepulsionTerm();
-  Gradient g = molecule.getGradientElectronic();
-  gradient_electronic = arma::join_vert(g.x, arma::join_vert(g.y, g.z));
+  Gradient g_electronic = molecule.getGradientElectronic();
+  Gradient g_nuclear = molecule.getGradientNuclear();
+  Gradient g_total = molecule.getGradientTotal();
+  gradient_electronic = molecule.gradVecsToMat(g_electronic);
+  gradient_nuclear = molecule.gradVecsToMat(g_nuclear);
+  gradient = molecule.gradVecsToMat(g_total);
 
   // You do not need to modify the code below this point
 
@@ -105,35 +114,35 @@ int main(int argc, char **argv) {
   // inspect your answer via printing
   Suv_RA.print("Suv_RA");
   gammaAB_RA.print("gammaAB_RA");
-  // gradient_nuclear.print("gradient_nuclear");
+  gradient_nuclear.print("gradient_nuclear");
   gradient_electronic.print("gradient_electronic");
-  // gradient.print("gradient");
+  gradient.print("gradient");
 
-  // // check that output dir exists
-  // if (!fs::exists(output_file_path.parent_path())) {
-  //   fs::create_directories(output_file_path.parent_path());
-  // }
+  // check that output dir exists
+  if (!fs::exists(output_file_path.parent_path())) {
+    fs::create_directories(output_file_path.parent_path());
+  }
 
-  // // delete the file if it does exist (so that no old answers stay there by
-  // // accident)
-  // if (fs::exists(output_file_path)) {
-  //   fs::remove(output_file_path);
-  // }
+  // delete the file if it does exist (so that no old answers stay there by
+  // accident)
+  if (fs::exists(output_file_path)) {
+    fs::remove(output_file_path);
+  }
 
-  // // write results to file
-  // Suv_RA.save(
-  //     arma::hdf5_name(output_file_path, "Suv_RA",
-  //                     arma::hdf5_opts::append + arma::hdf5_opts::trans));
-  // gammaAB_RA.save(
-  //     arma::hdf5_name(output_file_path, "gammaAB_RA",
-  //                     arma::hdf5_opts::append + arma::hdf5_opts::trans));
-  // gradient_nuclear.save(
-  //     arma::hdf5_name(output_file_path, "gradient_nuclear",
-  //                     arma::hdf5_opts::append + arma::hdf5_opts::trans));
-  // gradient_electronic.save(
-  //     arma::hdf5_name(output_file_path, "gradient_electronic",
-  //                     arma::hdf5_opts::append + arma::hdf5_opts::trans));
-  // gradient.save(
-  //     arma::hdf5_name(output_file_path, "gradient",
-  //                     arma::hdf5_opts::append + arma::hdf5_opts::trans));
+  // write results to file
+  Suv_RA.save(
+      arma::hdf5_name(output_file_path, "Suv_RA",
+                      arma::hdf5_opts::append + arma::hdf5_opts::trans));
+  gammaAB_RA.save(
+      arma::hdf5_name(output_file_path, "gammaAB_RA",
+                      arma::hdf5_opts::append + arma::hdf5_opts::trans));
+  gradient_nuclear.save(
+      arma::hdf5_name(output_file_path, "gradient_nuclear",
+                      arma::hdf5_opts::append + arma::hdf5_opts::trans));
+  gradient_electronic.save(
+      arma::hdf5_name(output_file_path, "gradient_electronic",
+                      arma::hdf5_opts::append + arma::hdf5_opts::trans));
+  gradient.save(
+      arma::hdf5_name(output_file_path, "gradient",
+                      arma::hdf5_opts::append + arma::hdf5_opts::trans));
 }

@@ -1,0 +1,6 @@
+{
+    "atoms_file_path": "atoms/H2O_off.xyz",
+    "output_file_path": "optimize_output/H2O.hdf5",
+    "num_alpha_electrons": 4,
+    "num_beta_electrons": 4
+}

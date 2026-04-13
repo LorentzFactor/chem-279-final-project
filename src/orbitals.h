@@ -226,6 +226,8 @@ struct globalAO {
  */
 class Molecule {
 private:
+  fs::path config_file_path_;
+
   std::vector<AtomicOrbital> basis_funcs_;
   std::unordered_map<int, int> id_to_atomic_num_;
   std::unordered_map<int, arma::rowvec> id_to_coords_;
@@ -256,183 +258,121 @@ private:
   arma::mat grad_overlap_term_;
   arma::mat grad_repulsion_term_;
   Gradient gradient_electronic_;
+  Gradient gradient_nuclear_;
+  Gradient gradient_total_;
 
 public:
-  /**
-   * @brief Construct a molecule from atom and basis set files.
-   *
-   * @param atoms_path Path to atomic coordinates file.
-   * @param basis_path Path to basis set directory.
-   */
+  /** @name Construction And State */
+  ///@{
+  /** @brief Construct a molecule from atom and basis set files. */
   Molecule(const fs::path &atoms_path, const fs::path &basis_path,
            const int num_alpha, const int num_beta);
+  /** @brief Set the config path used for reporting. */
+  void setConfigPath(fs::path config_path) { config_file_path_ = config_path; }
+  ///@}
 
-  /**
-   * @brief Number of contracted basis functions (dimension of AO matrices).
-   * @return Basis size \(N\).
-   */
+  /** @name Basic Accessors */
+  ///@{
+  /** @brief Number of contracted basis functions. */
   int getN() const { return N_basis_funcs_; }
-
+  /** @brief Number of atoms in the molecule. */
   int getNumAtoms() const { return n_atoms_; }
-
-  arma::mat getGradOverlapTerm() const { return grad_overlap_term_; }
-  arma::mat getGradRepulsionTerm() const { return grad_repulsion_term_; }
-  Gradient getGradientElectronic() const { return gradient_electronic_; }
-
-  /**
-   * @brief Energies from CNDO/2 calculation.
-   * @return CNDO2 struct with energy components and total energy.
-   */
+  /** @brief Current CNDO/2 energy components. */
   CNDO2Energy getCNDO2() const { return CNDO2_; }
+  ///@}
 
-  /**
-   * @brief Closed-shell density from occupied MO columns.
-   * @param C MO coefficient matrix (columns = MOs).
-   * @param n_electrons Number of electrons of this spin; occupies first
-   * `n_electrons` columns of `C`.
-   * @return Density matrix \(P = C_\mathrm{occ} C_\mathrm{occ}^\top\).
-   */
+  /** @name SCF Pipeline */
+  ///@{
+  /** @brief Build spin density from occupied molecular orbitals. */
   arma::mat solveDensity(const arma::mat &C, int n_electrons);
-
-  /**
-   * @brief Two-center \(s\)-type Coulomb integral helper for CNDO/2
-   * \(\gamma\) parameters.
-   *
-   * Evaluates the \( (ss|ss) \)-type interaction between spherical Gaussian
-   * charge clouds with widths `sigmaA`, `sigmaB` (related to primitive
-   * exponents) at centers `aoA` and `aoB`.
-   *
-   * @param aoA First AO (center coordinates).
-   * @param aoB Second AO (center coordinates).
-   * @param sigmaA Effective Gaussian width parameter for center A.
-   * @param sigmaB Effective Gaussian width parameter for center B.
-   * @return Two-electron integral contribution in atomic units (before any
-   * eV conversion in the caller).
-   */
+  /** @brief Compute the CNDO/2 gamma helper integral term. */
   double calc00(const AtomicOrbital &aoA, const AtomicOrbital &aoB,
                 double sigmaA, double sigmaB);
-
-  /**
-   * @brief Contracted \(\gamma_{AB}\) between two s-shell AOs (CNDO/2).
-   *
-   * Sums over primitive pairs on each center, converts result to eV.
-   *
-   * @param aoA First minimal-basis s AO.
-   * @param aoB Second minimal-basis s AO.
-   * @return \(\gamma_{AB}\) in electron-volts.
-   */
+  /** @brief Compute contracted CNDO/2 atom-pair gamma value. */
   double calcGamma(const AtomicOrbital &aoA, const AtomicOrbital &aoB);
+  /** @brief Assemble the atom-pair gamma matrix. */
+  void gammaMatrix();
+  /** @brief Sum on-atom diagonal density contributions. */
+  double localAtomDensity(int atom_id, const arma::mat &P);
+  /** @brief Compute electrostatic interaction term for one atom. */
+  double electrostaticInteract(int atom_id);
+  /** @brief Compute diagonal Fock matrix element. */
+  double fockDiagonal(int u, const arma::mat &P_self);
+  /** @brief Compute off-diagonal Fock matrix element. */
+  double fockOffDiagonal(int u, int v, const arma::mat &P_self);
+  /** @brief Build full Fock matrix for one spin block. */
+  void fockMatrix(arma::mat &F_self, const arma::mat &P_self);
+  /** @brief Compute diagonal core Hamiltonian element. */
+  double coreHamiltonianDiagonal(int u);
+  /** @brief Compute off-diagonal core Hamiltonian element. */
+  double coreHamiltonianOffDiagonal(int u, int v);
+  /** @brief Build the core Hamiltonian matrix. */
+  void coreHamiltonianMatrix();
+  /** @brief Diagonalize Fock matrix to obtain MOs and orbital energies. */
+  MoleculeEnergy solveEnergy(const arma::mat &F_self, int n_electrons);
+  /** @brief Compute nuclear repulsion energy. */
+  double nuclearRepulsion();
+  /** @brief Compute electronic energy from densities and Fock/core terms. */
+  double electronEnergy();
+  /** @brief Store all CNDO/2 energy components. */
+  void cndo2Energy();
+  /** @brief Run self-consistent field iterations. */
+  void SCF(bool verbose);
+  ///@}
 
+  /** @name Analytic Gradient Terms */
+  ///@{
+  /** @brief Reset all gradient vectors to zero. */
+  void zeroGradient(Gradient &g);
+  /** @brief Primitive overlap derivative for one Cartesian direction. */
+  double calcDerivative3D(int dim, AtomicOrbital &u, AtomicOrbital &v);
+  /** @brief Accumulate overlap-driven gradient contribution. */
+  void gradOverlapTerm(int id_A, int id_B);
+  /** @brief Derivative of the CNDO/2 gamma helper integral. */
   arma::rowvec calc00Derivative(const AtomicOrbital &aoA,
                                 const AtomicOrbital &aoB, double sigmaA,
                                 double sigmaB);
-
+  /** @brief Derivative of contracted CNDO/2 gamma value. */
   arma::rowvec calcGammaDerivative(const AtomicOrbital &aoA,
                                    const AtomicOrbital &aoB);
-
-  /**
-   * @brief Fill `gamma_` with \(\gamma_{AB}\) for all atom pairs (s orbitals
-   * only).
-   */
-  void gammaMatrix();
-
-  /**
-   * @brief Mulliken-like atomic population from diagonal density on that atom.
-   * @param atom_id Atom index.
-   * @param P Density matrix (alpha, beta, or total depending on caller).
-   * @return \(\sum_{\mu\in A} P_{\mu\mu}\).
-   */
-  double localAtomDensity(int atom_id, const arma::mat &P);
-
-  /**
-   * @brief CNDO/2 electrostatic field at `atom_id` from other atoms'
-   * net charges.
-   * @param atom_id Index of the atom whose environment is summed.
-   * @return Sum over \(C \neq A\) of \((P_\mathrm{tot,CC} - Z_C)\gamma_{AC}\)
-   * in eV-style bookkeeping used in the Fock diagonal.
-   */
-  double electrostaticInteract(int atom_id);
-
-  /**
-   * @brief Diagonal CNDO/2 Fock matrix element \(F_{\mu\mu}\).
-   * @param u AO index \(\mu\).
-   * @param P_self Spin density \(P^\alpha\) or \(P^\beta\) for this Fock build.
-   * @return Diagonal Fock value.
-   */
-  double fockDiagonal(int u, const arma::mat &P_self);
-
-  /**
-   * @brief Off-diagonal CNDO/2 Fock element \(F_{\mu\nu}\), \(\mu\neq\nu\).
-   * @param u First AO index.
-   * @param v Second AO index.
-   * @param P_self Same-spin density matrix.
-   * @return Off-diagonal Fock value.
-   */
-  double fockOffDiagonal(int u, int v, const arma::mat &P_self);
-
-  /**
-   * @brief Assemble full Fock matrix `F_self` from `P_self` and stored
-   * \(S\), \(\gamma\), and parameters.
-   * @param F_self Output matrix (same dimension as \(S\)).
-   * @param P_self Spin density used in Coulomb/exchange terms.
-   */
-  void fockMatrix(arma::mat &F_self, const arma::mat &P_self);
-
-  /**
-   * @brief Diagonal core Hamiltonian \(H^\mathrm{core}_{\mu\mu}\) (CNDO/2).
-   * @param u AO index.
-   * @return Core diagonal element.
-   */
-  double coreHamiltonianDiagonal(int u);
-
-  /**
-   * @brief Off-diagonal core Hamiltonian \(H^\mathrm{core}_{\mu\nu}\).
-   * @param u First AO index.
-   * @param v Second AO index.
-   * @return Core off-diagonal (proportional to overlap and binding params).
-   */
-  double coreHamiltonianOffDiagonal(int u, int v);
-
-  /** @brief Fill `H_core_` using `coreHamiltonianDiagonal/OffDiagonal`. */
-  void coreHamiltonianMatrix();
-
-  /**
-   * @brief Diagonalize a real symmetric Fock matrix.
-   * @param F_self Fock matrix to diagonalize.
-   * @param n_electrons Unused by implementation; reserved for occupation logic.
-   * @return Eigenvalues and eigenvectors (`MoleculeEnergy`).
-   */
-  MoleculeEnergy solveEnergy(const arma::mat &F_self, int n_electrons);
-
-  /**
-   * @brief Nuclear repulsion \(\sum_{A<B} Z_A Z_B / R_{AB}\) in eV.
-   * @return Classical repulsion energy (valence \(Z\) from `ValenceElectrons`).
-   */
-  double nuclearRepulsion();
-
-  /**
-   * @brief Electronic energy from current densities and Fock/core matrices.
-   * @return \(\frac12\mathrm{Tr}\,P_\alpha(H_\mathrm{core}+F_\alpha) +
-   * \frac12\mathrm{Tr}\,P_\beta(H_\mathrm{core}+F_\beta)\).
-   */
-  double electronEnergy();
-
-  /** @brief Store `electronEnergy`, `nuclearRepulsion`, and total in `CNDO2_`.
-   */
-  void cndo2Energy();
-
-  /**
-   * @brief Self-consistent field: build \(\gamma\) and \(H_\mathrm{core}\),
-   * iterate Fock/density until convergence, then fill `CNDO2_` energies.
-   * @param filepath Input path (used for log messages only).
-   */
-  void SCF(fs::path filepath);
-
-  double calcDerivative3D(int dim, AtomicOrbital &u, AtomicOrbital &v);
-  void gradOverlapTerm(int id_A, int id_B);
-  void electronicGradient();
+  /** @brief Accumulate electron-repulsion gradient contribution. */
   void gradRepulsionTerm(int id_A, int id_B);
+  /** @brief Build full electronic gradient. */
+  void electronicGradient();
+  /** @brief Nuclear repulsion derivative between two atoms. */
+  arma::rowvec nucRepulsionDeriv(arma::rowvec &RA, arma::rowvec &RB, double ZA,
+                                 double ZB);
+  /** @brief Build full nuclear gradient. */
+  void nuclearGradient();
+  /** @brief Combine electronic and nuclear gradients. */
+  void totalGradient();
+  /** @brief Convert gradient struct to 3xN matrix form. */
+  arma::mat gradVecsToMat(Gradient &g);
+  /** @brief Recompute SCF energy and all force terms at current geometry. */
+  double calcEnergyAndForces();
+  ///@}
 
+  /** @name Geometry Optimization */
+  ///@{
+  /** @brief Return a value copy of this molecule. */
+  Molecule copyMolecule();
+  /** @brief Steepest-descent geometry optimization loop. */
+  void steepestDescentOptimizer(double step, double force_threshold);
+  /** @brief Print current atomic coordinates. */
+  void printCoords();
+  /** @brief Print basic geometric properties for small molecules. */
+  void geometricProperties();
+  /** @brief Gradient overlap diagnostic matrix. */
+  arma::mat getGradOverlapTerm() const { return grad_overlap_term_; }
+  /** @brief Gradient repulsion diagnostic matrix. */
+  arma::mat getGradRepulsionTerm() const { return grad_repulsion_term_; }
+  /** @brief Electronic gradient vector components. */
+  Gradient getGradientElectronic() const { return gradient_electronic_; }
+  /** @brief Nuclear gradient vector components. */
+  Gradient getGradientNuclear() const { return gradient_nuclear_; }
+  /** @brief Total gradient vector components. */
+  Gradient getGradientTotal() const { return gradient_total_; }
+  ///@}
   /**
    * @brief Access an atomic orbital by index.
    *
@@ -454,27 +394,6 @@ public:
    */
   std::vector<AtomicOrbital> parse_atoms(const fs::path &atoms_path,
                                          const fs::path &basis_path);
-
-  /**
-   * @brief Export molecule data and matrices to an HDF5 file.
-   *
-   * @param output_file_path Path to the HDF5 output file.
-   */
-  void exportMoleculeResults(fs::path output_file_path);
-
-  /**
-   * @brief Generate a 1D PES for diatomic oxygen
-   *
-   * @param config_file_path Path to the JSON setup file.
-   * @param atoms_file_path Path to the atoms XYZ file.
-   * @param basis_path Path to the directory with basis function info.
-   * @param p Num of alpha electrons.
-   * @param q Num of beta electrons.
-   * @param max_bound Max bond length to test for PES
-   * @param step_size Step size between each CNDO/2 calculation.
-   */
-  static void generatePES(fs::path &config_file_path, fs::path &basis_path,
-                          int p, int q, double max_bond, double step_size);
 };
 
 #endif

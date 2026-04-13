@@ -1,0 +1,6 @@
+{
+    "atoms_file_path": "atoms/NH3.xyz",
+    "output_file_path": "optimize_output/NH3.hdf5",
+    "num_alpha_electrons": 4,
+    "num_beta_electrons": 4
+}

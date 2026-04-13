@@ -1,150 +1,24 @@
-## Homework 5 - Part 1
-#### Alex Chase
+# HW 5 - Evaluating the Gradient of SCF Energy
 
-The purpose of the following derivation is to determine the analytical energy gradient for a CNDO/2 calculation. The negative of the energy gradient is the force acting upon different atoms in our molecule. In the next phase of this assignment we will be able to use this gradient to optimize our atomic coordinates to find the minimum energy state that optimizes the molecular geometry. In this derivation we will first determine the $x_{\mu\nu}$ component for the overlap term, followed by the $y_{AB}$ for the electron repulsion term, and lastly solve for the derivatives of contracted gaussians within $s$ and $p$ orbitals with respect to the nuclear center. We first examine the energy equation for CNDO/2.
+#### Alex Chase 
+achase95@berkeley.edu
 
-$$E^{R_A}_{CNDO/2} = \sum_{\mu \neq \nu} x_{\mu \nu}s^{R_A}_{\mu \nu} + \sum_{A \neq B} y_{AB} \gamma^{R_A}_{AB} + V_{nuc}^{R_A}$$
+## Overview
 
-$$E_{CNDO/2} = \frac{1}{2} \sum_{\mu \nu}p^{\alpha}_{\mu \nu}(h_{\mu \nu} + f^{\alpha}_{\mu \nu}) + \frac{1}{2} \sum_{\mu \nu}p^{\beta}_{\mu \nu}(h_{\mu \nu} + f^{\beta}_{\mu \nu}) + \sum_{A} \sum_{B < A} \frac{Z_A Z_B}{R_{AB}}$$
+The purpose of this assignment was to apply the derivations for the analytical energy gradient from part 1 and actually calculate these gradients for several molecules. The original derivation can be found in `Part1Derivation.md` in this repository. The `Molecule` class was extended from previous assignments to include this functionality. Once the gradients were confirmed to be correct for the original test case, I implemented a steepest gradient descent optimizer to determine optimal geometric configurations of several molecules using the CNDO/2 with SCF method. The input files are located in the `optimize_input/` directory and the optimization can be ran using the executable generated from `opt_geometry.cpp`.
 
-The off diagonal elements for fock and hamiltonian energies contain $s_{\mu \nu}$.
+The geometries for the following molecules were optimized using this approach: CO, HF, H2O and NH3 (Table 1). There are several interesting results to note from this experiment. Firstly, the calculated bond lengths for CO and HF from this optimization are closer to the actual values compared to the Pople results. The Pople paper employed a coarser scan of bond lengths to find a minimum energy due to computational limitations of the time. In contrast, I was able to employ a more computationally expensive gradient descent approach which arrived at a more accurate solution for these diatomics. 
 
-$$f^{\alpha}_{\mu \nu} = \frac{1}{2}(\beta_A + \beta_B)s_{\mu \nu} - p^{\alpha}_{\mu \nu}\gamma_{AB} $$
+Secondly, the bond lengths and angles observed for H2O and NH3 illustrate the limitations of the CNDO/2 approach for some molecules. In the Pople paper, for these molecules the bond lengths were fixed and only the various bond angles were scanned. Once again this was due to computation restrictions of performing a gradient descent optimization. Therefore they arrive at a more accurate bond angle for NH3. In contrast we see that this codes optimization approach slightly over estimates bond lengths and in the case of NH3 underestimates the bond angle. 
 
-$$h_{\mu \nu} = \frac{1}{2}(\beta_A + \beta_B)s_{\mu \nu}$$
+Due to the approximations made by CNDO/2 to simplify the computation, implementing a gradient descent approach without fixed, empirical bond lengths allow for unrealistic geometries to be predicted for some molecules. In general though, this additional experiment shows that the CNDO/2 is relatively close to the actual geometries for these simple molecules and confirms the result that Pople observed when first publishing this approach.
 
-Substituting into the previous expression yields the following.
+|          | Actual           |                 | Pople CNDO/2     |                 | HW 5 CNDO/2      |                 |
+|----------|------------------|-----------------|------------------|-----------------|------------------|-----------------|
+| Molecule | Bond Angle (deg) | Bond Length (A) | Bond Angle (deg) | Bond Length (A) | Bond Angle (deg) | Bond Length (A) |
+| CO       | -                | 1.128           | -                | 1.191           | -                | 1.155           |
+| HF       | -                | 0.917           | -                | 1.000           | -                | 0.984           |
+| H2O      | 104.5            | 0.958           | 107.1            | 0.960           | 104.0            | 1.014           |
+| NH3      | 107.8            | 1.010           | 106.7            | 1.020           | 104.8            | 1.051           |
 
-$$p^{\alpha}_{\mu \nu}(h_{\mu \nu} + f^{\alpha}_{\mu \nu}) = p^{\alpha}_{\mu \nu}\left[\frac{1}{2}(\beta_A + \beta_B)s_{\mu \nu} + \frac{1}{2}(\beta_A + \beta_B)s_{\mu \nu} - p^{\alpha}_{\mu \nu}\gamma_{AB}\right]$$
-
-$$p^{\alpha}_{\mu \nu}[(\beta_A + \beta_B)s_{\mu \nu} - p^{\alpha}_{\mu \nu}\gamma_{AB}] $$
-
-$$p^{\alpha}_{\mu \nu}(\beta_A + \beta_B)s_{\mu \nu} + (-(p^{\alpha}_{\mu \nu})^2)\gamma_{AB} $$
-
-Evaluate $p^{\beta}_{\mu \nu}$ yields an equivalent expression.
-
-$$p^{\beta}_{\mu \nu}(\beta_A + \beta_B)s_{\mu \nu} + (-(p^{\beta}_{\mu \nu})^2)\gamma_{AB} $$
-
-The total density is the sum of the density on alpha and beta electrons.
-
-$$p^{tot}_{\mu \nu} = p^{\alpha}_{\mu \nu} + p^{\beta}_{\mu \nu} $$
-
-Inserting just the density terms containing $s_{\mu \nu}$ back into our $E_{CNDO/2}$ expression gives us the following.
-
-$$E_{CNDO/2} = \frac{1}{2} \sum_{\mu \nu}p^{\alpha}_{\mu \nu}(h_{\mu \nu} + f^{\alpha}_{\mu \nu}) + \frac{1}{2} \sum_{\mu \nu}p^{\beta}_{\mu \nu}(h_{\mu \nu} + f^{\beta}_{\mu \nu})$$
-
-$$\frac{1}{2} p^{\alpha}_{\mu \nu}(\beta_A + \beta_B)s_{\mu \nu} + \frac{1}{2} p^{\beta}_{\mu \nu}(\beta_A + \beta_B)s_{\mu \nu}$$
-
-$$\frac{1}{2}(p^{\alpha}_{\mu \nu} + p^{\beta}_{\mu \nu})(\beta_A + \beta_B)s_{\mu \nu}$$
-
-$$\frac{1}{2}p^{tot}_{\mu \nu}(\beta_A + \beta_B)s_{\mu \nu}$$
-
-Looking back at our initial expression for $E^{R_A}_{CNDO/2}$ we can see that $x_{\mu \nu}$ equals the following. Additionally, because we are now summing over unique pairs as opposed to all off-diagonals, we multiply our previous expression by a factor of 2 when inserting into the following summation.
-
-$$ x_{\mu \nu} =  p^{tot}_{\mu \nu}(\beta_A + \beta_B)$$  
-
-$$ \sum_{\mu \neq \nu} x_{\mu \nu}s^{R_A}_{\mu \nu} =  \sum_{\mu \neq \nu} p^{tot}_{\mu \nu}(\beta_A + \beta_B) s^{R_A}_{\mu \nu}$$  
-
-The diagonal elements of the fock and hamiltonian energies contain $\gamma_{AC}$ terms that we need to solve for $y_{AB}$ so we will evaluate those next.
-
-$$f^{\alpha}_{\mu \mu} = -\frac{1}{2}(I_{\mu} + A_{\mu}) + \left[(p^{tot}_{AA} - Z_A) - \left(p^{\alpha}_{\mu \mu} - \frac{1}{2}\right)\right] + \sum_{C \neq A}(p^{tot}_{CC} - Z_C)\gamma_{AC} $$
-
-$$h_{\mu \mu} =  -\frac{1}{2}(I_{\mu} + A_{\mu}) - \left(Z_A - \frac{1}{2}\right) - \sum_{C \neq A}Z_C\gamma_{AC} $$
-
-Reducing this down to just focus on the $\gamma_{AC}$ terms.
-
-$$f^{\alpha}_{\mu \mu} = \sum_{C \neq A}(p^{tot}_{CC} - Z_C)\gamma_{AC} $$
-
-$$h_{\mu \mu} =  - \sum_{C \neq A}Z_C\gamma_{AC} $$
-
-$$p^{\alpha}_{\mu\mu}(h_{\mu\mu} + f^{\alpha}_{\mu\mu}) = p^{\alpha}_{\mu\mu}\left[ - \sum_{C \neq A}Z_C\gamma_{AC} +  \sum_{C \neq A}(p^{tot}_{CC} - Z_C)\gamma_{AC}\right] $$
-
-$$p^{\alpha}_{\mu\mu}(h_{\mu\mu} + f^{\alpha}_{\mu\mu}) = p^{\alpha}_{\mu\mu}(p^{tot}_{CC} - 2Z_C)\gamma_{AC}  $$
-
-$$p^{\beta}_{\mu\mu}(h_{\mu\mu} + f^{\beta}_{\mu\mu}) = p^{\beta}_{\mu\mu}(p^{tot}_{CC} - 2Z_C)\gamma_{AC}  $$
-
-$$p^{tot}_{\mu\mu} = p^{\alpha}_{\mu\mu} + p^{\beta}_{\mu\mu} $$
-
-$$(p^{\alpha}_{\mu\mu} + p^{\beta}_{\mu\mu})( p^{tot}_{CC} - 2Z_C)\gamma_{AC} $$ 
-
-$$p^{tot}_{\mu\mu}( p^{tot}_{CC} - 2Z_C)\gamma_{AC} $$ 
-
-Our sum for all $\mu$ on a particular Atom only depends on $p^{tot}_{\mu\mu}$. Therefore our first term for $E_{CNDO/2}$ looks like the following.
-
-$$\frac{1}{2}\left(\sum_{\mu\in A} p^{tot}_{\mu\mu}\right)(p^{tot}_{CC} - 2Z_C)\gamma_{AC}  $$
-
-This summation is equal to the total density for atom A. We are comparing it against its neighbor B, which replaces C in the following expression.
-
-$$\frac{1}{2}p^{tot}_{AA}(p^{tot}_{BB} - 2Z_B)\gamma_{AB}  $$
-
-Similarly when our current atom is B we get the following.
-
-$$\frac{1}{2}p^{tot}_{BB}(p^{tot}_{AA} - 2Z_A)\gamma_{BA}  $$
-
-$$ \gamma_{AB} = \gamma_{BA} $$
-
-Adding the expressions for atoms A and B gives us the $y_{AB}$ contribution from the diagonal elements.
-
-$$\frac{1}{2}p^{tot}_{AA}(p^{tot}_{BB} - 2Z_B)\gamma_{AB} + \frac{1}{2}p^{tot}_{BB}(p^{tot}_{AA} - 2Z_A)\gamma_{AB} $$
-
-$$\left(\frac{1}{2}p^{tot}_{AA}p^{tot}_{BB} - p^{tot}_{AA}Z_B\right)\gamma_{AB} + \left(\frac{1}{2}p^{tot}_{BB}p^{tot}_{AA} - p^{tot}_{BB}Z_A\right)\gamma_{AB}$$
-
-$$(p^{tot}_{AA}p^{tot}_{BB} - Z_Bp^{tot}_{AA} - Z_Ap^{tot}_{BB})\gamma_{AB} $$
-
-Finally adding in our terms that we previously derived from the off diagonal elements we get the combined expression.
-
-$$(p^{tot}_{AA}p^{tot}_{BB} - Z_Bp^{tot}_{AA} - Z_Ap^{tot}_{BB} - \sum_{\mu\in A} \sum_{\nu\in B}((p^{\alpha}_{\mu\nu})^2 + (p^{\beta}_{\mu\nu})^2))\gamma_{AB} $$
-
-$$(p^{tot}_{AA}p^{tot}_{BB} - Z_Bp^{tot}_{AA} - Z_Ap^{tot}_{BB} - \sum_{\mu\in A} \sum_{\nu\in B}(p^{\alpha}_{\mu\nu}p^{\alpha}_{\nu\mu} + p^{\beta}_{\mu\nu}p^{\beta}_{\nu\mu}))\gamma_{AB} $$
-
-$$y_{AB} = p^{tot}_{AA}p^{tot}_{BB} - Z_Bp^{tot}_{AA} - Z_Ap^{tot}_{BB} - \sum_{\mu\in A} \sum_{\nu\in B}(p^{\alpha}_{\mu\nu}p^{\alpha}_{\nu\mu} + p^{\beta}_{\mu\nu}p^{\beta}_{\nu\mu}) $$
-
-Now that we have our $x_{\mu\nu}$ and $y_{AB}$ terms we can find the derivative of contracted gaussian $s$ orbital with respect to its nuclear center. The derivative of the overlap with respect to a particular direction $X$ can be written as the following.
-
-$$\frac{\partial S^{kl}}{\partial X_{a}} = -l_kS_{1D}(X_A, X_B, l_k - 1, l_l, \alpha_k, \alpha_l) + 2\alpha_k S_{1D}(X_A, X_B, l_k + 1,l_l, \alpha_k, \alpha_l) $$
-
-For an $s$ orbital the angular momentum is 0 in all directions. We can write the contracted gaussian overlap on atom A as the following with $g_k(r)$ as our contracted gaussian.
-
-$$\mu(r) = \sum^{3}_{k=1}d_{k\mu}N_{k\mu}g_k(r) $$
-
-The derivative with respect to the X-dimension is then the following.
-
-$$\frac{\partial \mu_s}{\partial X_A} = \sum^3_{k=1}d_{k\mu}N_{k\mu}(-(0)S_{1D}(X_A, X_B, (0) - 1, l_l,\alpha_k, \alpha_l) + 2\alpha_k S_{1D}(X_A, X_B, (0) + 1,l_l, \alpha_k, \alpha_l)) $$
-
-$$\frac{\partial \mu_s}{\partial X_A} = \sum^3_{k=1}d_{k\mu}N_{k\mu}(2\alpha_k S_{1D}(X_A, X_B, 1, l_l, \alpha_k, \alpha_l)) $$
-
-The derivatives with respect to the $y$ and $z$ dimensions are the same for the $s$ orbital. Now we can do the same thing for our $p$ orbitals. Using $p_x$ as an example we can find the partial derivatives with respect to the $x, y, z$ dimensions.
-
-$$ p_x(l_x = 1, l_y = 0, l_z = 0) $$
-
-With respect to X dimension.
-
-$$\frac{\partial \mu_{p_x}}{\partial X_A} = \sum^3_{k=1}d_{k\mu}N_{k\mu}(-(1)S_{1D}(X_A, X_B, (1) - 1,l_l, \alpha_k, \alpha_l) + 2\alpha_k S_{1D}(X_A, X_B, (1) + 1,l_l, \alpha_k, \alpha_l)) $$
-
-$$\frac{\partial \mu_{p_x}}{\partial X_A} = \sum^3_{k=1}d_{k\mu}N_{k\mu}(-S_{1D}(X_A, X_B, 0, l_l, \alpha_k, \alpha_l) + 2\alpha_k S_{1D}(X_A, X_B, 2,l_l, \alpha_k, \alpha_l)) $$
-
-With respect to the Y dimension.
-
-$$\frac{\partial \mu_{p_x}}{\partial Y_A} = \sum^3_{k=1}d_{k\mu}N_{k\mu}(-(0)S_{1D}(Y_A, Y_B, (0) - 1, l_l, \alpha_k, \alpha_l) + 2\alpha_k S_{1D}(Y_A, Y_B, (0) + 1,l_l, \alpha_k, \alpha_l)) $$
-
-$$\frac{\partial \mu_{p_x}}{\partial Y_A} = \sum^3_{k=1}d_{k\mu}N_{k\mu}(2\alpha_k S_{1D}(Y_A, Y_B, 1, l_l, \alpha_k, \alpha_l)) $$
-
-And lastly the same as Y with respect to the Z dimension.
-
-$$\frac{\partial \mu_{p_x}}{\partial Z_A} = \sum^3_{k=1}d_{k\mu}N_{k\mu}(2\alpha_k S_{1D}(Z_A, Z_B, 1, l_l, \alpha_k, \alpha_l)) $$
-
-The same logic then applies for the $p_y$ and $p_z$ orbitals.
-
-### Results Summary
-
-$$ x_{\mu \nu} =  p^{tot}_{\mu \nu}(\beta_A + \beta_B)$$  
-
-$$y_{AB} = p^{tot}_{AA}p^{tot}_{BB} - Z_Bp^{tot}_{AA} - Z_Ap^{tot}_{BB} - \sum_{\mu\in A} \sum_{\nu\in B}(p^{\alpha}_{\mu\nu}p^{\alpha}_{\nu\mu} + p^{\beta}_{\mu\nu}p^{\beta}_{\nu\mu}) $$
-
-$$\frac{\partial \mu_s}{\partial X_A} = \sum^3_{k=1}d_{k\mu}N_{k\mu}(2\alpha_k S_{1D}(X_A, X_B, 1, l_l, \alpha_k, \alpha_l)) $$
-
-$$\frac{\partial \mu_{p_x}}{\partial X_A} = \sum^3_{k=1}d_{k\mu}N_{k\mu}(-S_{1D}(X_A, X_B, 0, l_l, \alpha_k, \alpha_l) + 2\alpha_k S_{1D}(X_A, X_B, 2, l_l, \alpha_k, \alpha_l)) $$
-
-$$\frac{\partial \mu_{p_x}}{\partial Y_A} = \sum^3_{k=1}d_{k\mu}N_{k\mu}(2\alpha_k S_{1D}(Y_A, Y_B, 1, l_l, \alpha_k, \alpha_l)) $$
-
-$$\frac{\partial \mu_{p_x}}{\partial Z_A} = \sum^3_{k=1}d_{k\mu}N_{k\mu}(2\alpha_k S_{1D}(Z_A, Z_B, 1, l_l, \alpha_k, \alpha_l)) $$
+#### Table 1. Geometry Optimization Results

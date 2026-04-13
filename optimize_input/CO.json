@@ -1,0 +1,6 @@
+{
+    "atoms_file_path": "atoms/CO.xyz",
+    "output_file_path": "optimize_output/CO.hdf5",
+    "num_alpha_electrons": 5,
+    "num_beta_electrons": 5
+}

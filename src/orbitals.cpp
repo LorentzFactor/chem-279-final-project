@@ -3,7 +3,6 @@
 
 #include <armadillo>
 #include <cmath>
-#include <exception>
 #include <fstream>
 #include <highfive/H5File.hpp>
 #include <iostream>
@@ -68,70 +67,6 @@ void calculateNormalization(AtomicOrbital &atom) {
 }
 
 /**
- * @brief Parse atoms and build atomic orbitals from coordinate and basis files.
- *
- * Generates the vector of AOs that will be stored in the Molecule class.
- * Called from the Molecule class during construction.
- *
- */
-std::vector<AtomicOrbital> Molecule::parse_atoms(const fs::path &atoms_path,
-                                                 const fs::path &basis_path) {
-  std::vector<AtomicOrbital> atoms;
-  std::ifstream file(atoms_path);
-  std::map<int, std::map<int, std::vector<PrimitiveGaussian>>> basis_map =
-      extract_basis(basis_path);
-
-  if (!file.is_open()) {
-    std::cerr << "Error: could not open " << atoms_path << '\n';
-    return atoms;
-  }
-
-  std::string line;
-  int num_atoms = 0;
-
-  if (std::getline(file, line)) {
-    std::stringstream ss(line);
-    ss >> num_atoms;
-    this->n_atoms_ = num_atoms;
-  }
-
-  // skip comment line
-  std::getline(file, line);
-
-  // parse atom data
-  int atom_id = 0;
-  for (int i = 0; i < num_atoms; ++i) {
-    double x, y, z;
-    int atomic_number;
-    if (std::getline(file, line)) {
-      std::stringstream ss(line);
-      ss >> atomic_number >> x >> y >> z;
-
-      for (const auto &pair : basis_map[atomic_number]) {
-        std::vector<PrimitiveGaussian> basis = pair.second;
-        Shells shell(pair.first); // momentum from basis map key to get shell
-        for (arma::uword i = 0; i < shell.L.n_rows; ++i) {
-          arma::rowvec momentum = shell.L.row(i);
-          // pair.second is vector of three primitive gaussians
-          AtomicOrbital atom(atomic_number, atom_id, x, y, z, pair.first,
-                             momentum, basis);
-          calculateNormalization(atom);
-          // Track global AOs mapped to atom_id
-          int global_AO_idx = atoms.size();
-          globalAO gao = {global_AO_idx, atom};
-          id_to_global_AO_[atom_id].push_back(gao);
-          atoms.push_back(atom);
-        }
-      }
-      id_to_atomic_num_[atom_id] = atomic_number;
-      id_to_coords_[atom_id] = arma::rowvec{x, y, z};
-      atom_id += 1;
-    }
-  }
-  return atoms;
-}
-
-/**
  * @brief Construct a molecule and precompute the AO overlap matrix.
  *
  * Parses atoms and basis sets to build contracted AOs, computes the overlap
@@ -155,13 +90,22 @@ Molecule::Molecule(const fs::path &atoms_path, const fs::path &basis_path,
   H_core_.zeros(N_basis_funcs_, N_basis_funcs_);
   grad_overlap_term_.zeros(3, N_basis_funcs_ * N_basis_funcs_);
   grad_repulsion_term_.zeros(3, n_atoms_ * n_atoms_);
-  gradient_electronic_.x.zeros(n_atoms_);
-  gradient_electronic_.y.zeros(n_atoms_);
-  gradient_electronic_.z.zeros(n_atoms_);
+  zeroGradient(gradient_electronic_);
+  zeroGradient(gradient_nuclear_);
+  zeroGradient(gradient_total_);
 }
 
+// === SCF Pipeline ===
+
 /**
- * @copydoc Molecule::solveDensity
+ * @brief Build the spin density matrix from occupied molecular orbitals.
+ *
+ * Occupies the first `n_electrons` columns of `C` and forms
+ * \(P = C_{occ} C_{occ}^T\).
+ *
+ * @param C Molecular orbital coefficient matrix.
+ * @param n_electrons Number of occupied orbitals for this spin block.
+ * @return Spin density matrix.
  */
 arma::mat Molecule::solveDensity(const arma::mat &C, int n_electrons) {
   arma::mat C_occ =
@@ -171,7 +115,14 @@ arma::mat Molecule::solveDensity(const arma::mat &C, int n_electrons) {
 }
 
 /**
- * @copydoc Molecule::calc00
+ * @brief Compute the CNDO/2 two-center helper integral for s-like charge
+ * clouds.
+ *
+ * @param aoA First orbital center.
+ * @param aoB Second orbital center.
+ * @param sigmaA Effective Gaussian width parameter for center A.
+ * @param sigmaB Effective Gaussian width parameter for center B.
+ * @return Integral contribution in atomic units.
  */
 double Molecule::calc00(const AtomicOrbital &aoA, const AtomicOrbital &aoB,
                         double sigmaA, double sigmaB) {
@@ -189,7 +140,13 @@ double Molecule::calc00(const AtomicOrbital &aoA, const AtomicOrbital &aoB,
 }
 
 /**
- * @copydoc Molecule::calcGamma
+ * @brief Compute contracted CNDO/2 \f$\gamma_{AB}\f$ between two s-orbitals.
+ *
+ * Performs the full primitive-pair contraction and converts to eV.
+ *
+ * @param aoA First atom-centered s-orbital.
+ * @param aoB Second atom-centered s-orbital.
+ * @return Contracted gamma value in electron-volts.
  */
 double Molecule::calcGamma(const AtomicOrbital &aoA, const AtomicOrbital &aoB) {
   double ev_AU_conv = 27.211324570273;
@@ -223,9 +180,7 @@ double Molecule::calcGamma(const AtomicOrbital &aoA, const AtomicOrbital &aoB) {
   return gamma_val;
 }
 
-/**
- * @copydoc Molecule::gammaMatrix
- */
+/** @brief Assemble the full atom-pair gamma matrix used in CNDO/2. */
 void Molecule::gammaMatrix() {
   int gamma_A_count = 0;
   for (int idx_A = 0; idx_A < N_basis_funcs_; ++idx_A) {
@@ -246,7 +201,11 @@ void Molecule::gammaMatrix() {
 }
 
 /**
- * @copydoc Molecule::localAtomDensity
+ * @brief Compute Mulliken-like local population on a single atom.
+ *
+ * @param atom_id Atom index.
+ * @param P Density matrix to sample.
+ * @return Sum of on-atom diagonal AO densities.
  */
 double Molecule::localAtomDensity(int atom_id, const arma::mat &P) {
   double local_density = 0.0;
@@ -259,7 +218,10 @@ double Molecule::localAtomDensity(int atom_id, const arma::mat &P) {
 }
 
 /**
- * @copydoc Molecule::electrostaticInteract
+ * @brief Compute electrostatic interaction contribution for one atom.
+ *
+ * @param atom_id Atom whose environment term is requested.
+ * @return Electrostatic CNDO/2 contribution for diagonal Fock assembly.
  */
 double Molecule::electrostaticInteract(int atom_id) {
   double electro = 0.0;
@@ -276,7 +238,11 @@ double Molecule::electrostaticInteract(int atom_id) {
 }
 
 /**
- * @copydoc Molecule::fockDiagonal
+ * @brief Compute one diagonal element of the spin-specific Fock matrix.
+ *
+ * @param u AO index.
+ * @param P_self Density matrix for the current spin channel.
+ * @return Diagonal Fock value.
  */
 double Molecule::fockDiagonal(int u, const arma::mat &P_self) {
   double fock_energy = 0.0;
@@ -297,7 +263,12 @@ double Molecule::fockDiagonal(int u, const arma::mat &P_self) {
 }
 
 /**
- * @copydoc Molecule::fockOffDiagonal
+ * @brief Compute one off-diagonal element of the spin-specific Fock matrix.
+ *
+ * @param u First AO index.
+ * @param v Second AO index.
+ * @param P_self Density matrix for the current spin channel.
+ * @return Off-diagonal Fock value.
  */
 double Molecule::fockOffDiagonal(int u, int v, const arma::mat &P_self) {
   double fock_energy = 0.0;
@@ -313,7 +284,10 @@ double Molecule::fockOffDiagonal(int u, int v, const arma::mat &P_self) {
 }
 
 /**
- * @copydoc Molecule::fockMatrix
+ * @brief Build the full spin-specific Fock matrix from a spin density matrix.
+ *
+ * @param F_self Output Fock matrix.
+ * @param P_self Input spin density matrix.
  */
 void Molecule::fockMatrix(arma::mat &F_self, const arma::mat &P_self) {
 
@@ -329,7 +303,9 @@ void Molecule::fockMatrix(arma::mat &F_self, const arma::mat &P_self) {
 }
 
 /**
- * @copydoc Molecule::coreHamiltonianDiagonal
+ * @brief Compute one diagonal core Hamiltonian element.
+ * @param u AO index.
+ * @return Core Hamiltonian diagonal value.
  */
 double Molecule::coreHamiltonianDiagonal(int u) {
   double ham_energy = 0.0;
@@ -352,7 +328,10 @@ double Molecule::coreHamiltonianDiagonal(int u) {
 }
 
 /**
- * @copydoc Molecule::coreHamiltonianOffDiagonal
+ * @brief Compute one off-diagonal core Hamiltonian element.
+ * @param u First AO index.
+ * @param v Second AO index.
+ * @return Core Hamiltonian off-diagonal value.
  */
 double Molecule::coreHamiltonianOffDiagonal(int u, int v) {
   double ham_energy = 0.0;
@@ -364,9 +343,7 @@ double Molecule::coreHamiltonianOffDiagonal(int u, int v) {
   return ham_energy;
 }
 
-/**
- * @copydoc Molecule::coreHamiltonianMatrix
- */
+/** @brief Build the full core Hamiltonian matrix. */
 void Molecule::coreHamiltonianMatrix() {
   for (int u = 0; u < N_basis_funcs_; ++u) {
     for (int v = 0; v < N_basis_funcs_; ++v) {
@@ -380,7 +357,10 @@ void Molecule::coreHamiltonianMatrix() {
 }
 
 /**
- * @copydoc Molecule::solveEnergy
+ * @brief Diagonalize a Fock matrix to obtain orbital energies and MOs.
+ * @param F_self Real symmetric Fock matrix.
+ * @param n_electrons Reserved for occupancy handling.
+ * @return Orbital energies and coefficient matrix.
  */
 MoleculeEnergy Molecule::solveEnergy(const arma::mat &F_self, int n_electrons) {
   MoleculeEnergy system;
@@ -391,24 +371,8 @@ MoleculeEnergy Molecule::solveEnergy(const arma::mat &F_self, int n_electrons) {
 }
 
 /**
- * @copydoc Molecule::electronEnergy
- */
-double Molecule::electronEnergy() {
-  double e_energy_alpha = 0.0;
-  double e_energy_beta = 0.0;
-
-  for (int u = 0; u < N_basis_funcs_; ++u) {
-    for (int v = 0; v < N_basis_funcs_; ++v) {
-      e_energy_alpha += P_alpha_(u, v) * (H_core_(u, v) + F_alpha_(u, v));
-      e_energy_beta += P_beta_(u, v) * (H_core_(u, v) + F_beta_(u, v));
-    }
-  }
-
-  return (0.5 * e_energy_alpha) + (0.5 * e_energy_beta);
-}
-
-/**
- * @copydoc Molecule::nuclearRepulsion
+ * @brief Compute classical nuclear repulsion from current geometry.
+ * @return Nuclear repulsion energy in eV.
  */
 double Molecule::nuclearRepulsion() {
   double ev_AU_conv = 27.211324570273;
@@ -427,8 +391,24 @@ double Molecule::nuclearRepulsion() {
 }
 
 /**
- * @copydoc Molecule::cndo2Energy
+ * @brief Compute electronic energy from current densities and Fock/core terms.
+ * @return Total electronic contribution in eV.
  */
+double Molecule::electronEnergy() {
+  double e_energy_alpha = 0.0;
+  double e_energy_beta = 0.0;
+
+  for (int u = 0; u < N_basis_funcs_; ++u) {
+    for (int v = 0; v < N_basis_funcs_; ++v) {
+      e_energy_alpha += P_alpha_(u, v) * (H_core_(u, v) + F_alpha_(u, v));
+      e_energy_beta += P_beta_(u, v) * (H_core_(u, v) + F_beta_(u, v));
+    }
+  }
+
+  return (0.5 * e_energy_alpha) + (0.5 * e_energy_beta);
+}
+
+/** @brief Store electronic, nuclear, and total CNDO/2 energy components. */
 void Molecule::cndo2Energy() {
   CNDO2_.electron_energy = electronEnergy();
   CNDO2_.nuclear_repulsion = nuclearRepulsion();
@@ -436,9 +416,10 @@ void Molecule::cndo2Energy() {
 }
 
 /**
- * @copydoc Molecule::SCF
+ * @brief Run unrestricted CNDO/2 SCF iterations to self-consistency.
+ * @param verbose If true, print convergence and final energy information.
  */
-void Molecule::SCF(fs::path filepath) {
+void Molecule::SCF(bool verbose) {
   // Initialize gamma and the core hamiltonian
   gammaMatrix();
   coreHamiltonianMatrix();
@@ -446,24 +427,14 @@ void Molecule::SCF(fs::path filepath) {
   arma::mat P_alpha_old;
   arma::mat P_beta_old;
 
-  std::cout << "p: " << n_alpha_ << " q: " << n_beta_
-            << " total: " << n_alpha_ + n_beta_ << '\n';
-  gamma_.print("Gamma matrix:");
-  S_.print("S overlap matrix:");
-  H_core_.print("Core hamiltonian matrix:");
-
   bool convergence = false;
   int iterations = 0;
   int iterations_max = 50; // Max iterations safety net
   while ((!convergence) && (iterations < iterations_max)) {
-    std::cout << "Iteration: " << iterations << '\n';
 
     // Calculate both alpha and beta fock matrices
     fockMatrix(F_alpha_, P_alpha_);
     fockMatrix(F_beta_, P_beta_);
-    F_alpha_.print("Fa");
-    F_beta_.print("Fb");
-    std::cout << "After solving eigen equation: " << iterations << '\n';
 
     // Save initial fock matrices for test cases
     if (iterations == 0) {
@@ -474,9 +445,6 @@ void Molecule::SCF(fs::path filepath) {
     // Solve the eigen problem for alpha and beta
     system_alpha_ = solveEnergy(F_alpha_, n_alpha_);
     system_beta_ = solveEnergy(F_beta_, n_beta_);
-    system_alpha_.C.print("Ca");
-    system_beta_.C.print("Cb");
-    std::cout << "p: " << n_alpha_ << " q: " << n_beta_ << '\n';
 
     // Copy the current densities to old
     P_alpha_old = P_alpha_;
@@ -492,10 +460,6 @@ void Molecule::SCF(fs::path filepath) {
     double dP_alpha = arma::abs(P_alpha_ - P_alpha_old).max();
     double dP_beta = arma::abs(P_beta_ - P_beta_old).max();
 
-    // Helpful print to show that process is converging
-    std::cout << "Alpha diff: " << dP_alpha << " || Beta diff: " << dP_beta
-              << '\n';
-
     // Check convergence of both alpha and beta
     bool alpha_converged =
         arma::approx_equal(P_alpha_, P_alpha_old, "absdiff", converge_tol);
@@ -505,23 +469,27 @@ void Molecule::SCF(fs::path filepath) {
     if (alpha_converged && beta_converged) {
       convergence = true;
       cndo2Energy(); // Store the final energies
-      system_alpha_.energies.print("Ea");
-      system_beta_.energies.print("Eb");
-      system_alpha_.C.print("Ca");
-      system_beta_.C.print("Cb");
-      std::cout << "Nuclear Repulsion Energy is " << CNDO2_.nuclear_repulsion
-                << " eV.\n";
-      std::cout << "Electron Energy is " << CNDO2_.electron_energy << " eV.\n";
-      std::cout << "The molecule in file " << filepath << " has energy "
-                << CNDO2_.total_energy << " eV.\n";
-
-    } else {
-      P_alpha_.print("Pa_new");
-      P_beta_.print("Pb_new");
+      if (verbose) {
+        std::cout << "Iterations to converge: " << iterations << '\n';
+        std::cout << "Nuclear Repulsion Energy is " << CNDO2_.nuclear_repulsion
+                  << " eV.\n";
+        std::cout << "Electron Energy is " << CNDO2_.electron_energy
+                  << " eV.\n";
+        std::cout << "The molecule in file " << config_file_path_
+                  << " has energy " << CNDO2_.total_energy << " eV.\n";
+      }
     }
 
     iterations += 1;
   }
+}
+
+// === Analytic Gradient Terms ===
+
+void Molecule::zeroGradient(Gradient &g) {
+  g.x.zeros(n_atoms_);
+  g.y.zeros(n_atoms_);
+  g.z.zeros(n_atoms_);
 }
 
 double Molecule::calcDerivative3D(int dim, AtomicOrbital &u, AtomicOrbital &v) {
@@ -541,10 +509,9 @@ double Molecule::calcDerivative3D(int dim, AtomicOrbital &u, AtomicOrbital &v) {
       // Calculate the center between these two primitives
       arma::rowvec center = gaussianCenter(u, v, u_p.exponent, v_p.exponent);
       // Calculate the derivative for this specific dimension
-      double term1 =
-          -u_p.momentum * calcTotal1DOverlap(u_p.exponent, v_p.exponent,
-                                             u.coords.at(dim), v.coords.at(dim),
-                                             center.at(dim), l_A - 1, l_B);
+      double term1 = -l_A * calcTotal1DOverlap(
+                                u_p.exponent, v_p.exponent, u.coords.at(dim),
+                                v.coords.at(dim), center.at(dim), l_A - 1, l_B);
       double term2 =
           2 * u_p.exponent *
           calcTotal1DOverlap(u_p.exponent, v_p.exponent, u.coords.at(dim),
@@ -559,7 +526,7 @@ double Molecule::calcDerivative3D(int dim, AtomicOrbital &u, AtomicOrbital &v) {
           continue;
         dS_3D_dDIM *= calcTotal1DOverlap(
             u_p.exponent, v_p.exponent, u.coords.at(xyz), v.coords.at(xyz),
-            center.at(xyz), u_p.momentum, v_p.momentum);
+            center.at(xyz), u.momentum.at(xyz), v.momentum.at(xyz));
       }
 
       // Get constants term for these prim gaussians
@@ -629,24 +596,21 @@ arma::rowvec Molecule::calc00Derivative(const AtomicOrbital &aoA,
   double UB = std::pow(M_PI * sigmaB, 1.5);
   double V2 = 1 / (sigmaA + sigmaB);
   double V = std::sqrt(V2);
-  double deriv_result;
-  for (int xyz = 0; xyz < num_dims; ++xyz) {
-    double RA = aoA.coords.at(xyz);
-    double RB = aoB.coords.at(xyz);
-    double dist = std::abs(RA - RB);
-    double T = V2 * (dist * dist);
-    double term1, term2;
-    if (dist < 1e-12) {
-      term1 = 0.0;
-      term2 = 0.0;
-    } else {
-      term1 = (UA * UB * (RA - RB)) / (dist * dist);
-      term2 = -std::erf(std::sqrt(T)) / dist;
-    }
-    double term3 = ((2 * V) / std::sqrt(M_PI)) * std::exp(-T);
-    deriv_result = term1 * (term2 + term3);
-    deriv_00.at(xyz) = deriv_result;
+
+  arma::rowvec R_diff = aoA.coords - aoB.coords;
+  double R_dist = arma::norm(R_diff);
+  double T = V2 * (R_dist * R_dist);
+  arma::rowvec term1;
+  double term2;
+  if (R_dist < 1e-12) {
+    term1 = 0.0;
+    term2 = 0.0;
+  } else {
+    term1 = (UA * UB * R_diff) / (R_dist * R_dist);
+    term2 = -std::erf(std::sqrt(T)) / R_dist;
   }
+  double term3 = ((2 * V) / std::sqrt(M_PI)) * std::exp(-T);
+  deriv_00 = term1 * (term2 + term3);
 
   return deriv_00;
 }
@@ -765,10 +729,6 @@ void Molecule::gradRepulsionTerm(int id_A, int id_B) {
 }
 
 void Molecule::electronicGradient() {
-  // iterate through A then B
-  // determine gamma term
-  // call gradOverlapTerm
-
   for (int id_A = 0; id_A < n_atoms_; ++id_A) {
     for (int id_B = id_A + 1; id_B < n_atoms_; ++id_B) {
       gradRepulsionTerm(id_A, id_B);
@@ -777,62 +737,281 @@ void Molecule::electronicGradient() {
   }
 }
 
-/**
- * @copydoc Molecule::exportMoleculeResults
- */
-void Molecule::exportMoleculeResults(fs::path output_file_path) {
-
-  HighFive::File file(output_file_path, HighFive::File::Create);
-  S_.save(arma::hdf5_name(output_file_path, "S",
-                          arma::hdf5_opts::append + arma::hdf5_opts::trans));
-  gamma_.save(
-      arma::hdf5_name(output_file_path, "gamma",
-                      arma::hdf5_opts::append + arma::hdf5_opts::trans));
-  H_core_.save(
-      arma::hdf5_name(output_file_path, "H_core",
-                      arma::hdf5_opts::append + arma::hdf5_opts::trans));
-  F_alpha_initial_.save(
-      arma::hdf5_name(output_file_path, "Fa_initial",
-                      arma::hdf5_opts::append + arma::hdf5_opts::trans));
-  F_beta_initial_.save(
-      arma::hdf5_name(output_file_path, "Fb_initial",
-                      arma::hdf5_opts::append + arma::hdf5_opts::trans));
-  system_alpha_.energies.save(
-      arma::hdf5_name(output_file_path, "Ea",
-                      arma::hdf5_opts::append + arma::hdf5_opts::trans));
-  system_beta_.energies.save(
-      arma::hdf5_name(output_file_path, "Eb",
-                      arma::hdf5_opts::append + arma::hdf5_opts::trans));
-  file.createDataSet("electronic_energy", CNDO2_.electron_energy);
-  file.createDataSet("nuclear_energy", CNDO2_.nuclear_repulsion);
-  file.createDataSet("total_energy", CNDO2_.total_energy);
+arma::rowvec Molecule::nucRepulsionDeriv(arma::rowvec &RA, arma::rowvec &RB,
+                                         double ZA, double ZB) {
+  double ev_AU_conv = 27.211324570273;
+  arma::rowvec nuc_repulse_result;
+  nuc_repulse_result.zeros(3);
+  arma::rowvec R_diff = RA - RB;
+  double R_dist = arma::norm(R_diff);
+  double R_dist_cubed = R_dist * R_dist * R_dist;
+  if (R_dist < 1e-12) {
+    return nuc_repulse_result;
+  }
+  nuc_repulse_result = -ZA * ZB * (R_diff / R_dist_cubed);
+  return nuc_repulse_result * ev_AU_conv;
 }
 
-/**
- * @copydoc Molecule::generatePES
- */
-void Molecule::generatePES(fs::path &config_file_path, fs::path &basis_path,
-                           int p, int q, double max_bond, double step_size) {
-  double initial_distance = 1.51;
-  std::ofstream log("O2_PES.csv", std::ios_base::out);
-  log << "Bond_Length,Total_Energy\n";
+void Molecule::nuclearGradient() {
+  int x = 0, y = 1, z = 2;
+  for (int id_A = 0; id_A < n_atoms_; ++id_A) {
+    for (int id_B = id_A + 1; id_B < n_atoms_; ++id_B) {
+      // Get all necessary terms by atom IDs
+      int A_atomic_num = id_to_atomic_num_.at(id_A);
+      int B_atomic_num = id_to_atomic_num_.at(id_B);
+      arma::rowvec RA = id_to_coords_.at(id_A);
+      arma::rowvec RB = id_to_coords_.at(id_B);
+      double ZA = V_.valence.at(A_atomic_num);
+      double ZB = V_.valence.at(B_atomic_num);
 
-  for (int step = 0; initial_distance + (step * step_size) < max_bond; ++step) {
-    double current_r = initial_distance + (step * step_size);
+      arma::rowvec nuc_rep = nucRepulsionDeriv(RA, RB, ZA, ZB);
 
-    // generate a temp xyz file with updated coords
-    fs::path temp_xyz = "temp_O2.xyz";
-    std::ofstream xyz_file(temp_xyz);
-    xyz_file << "2\n";
-    xyz_file << "Step " << step << " R=" << current_r << '\n';
-    xyz_file << "8 0.0 0.0 0.0\n";
-    xyz_file << "8 " << current_r << " 0.0 0.0\n"; // update x coord here
-    xyz_file.close();
+      // Repulsion on Atom A
+      gradient_nuclear_.x.at(id_A) += nuc_rep.at(x);
+      gradient_nuclear_.y.at(id_A) += nuc_rep.at(y);
+      gradient_nuclear_.z.at(id_A) += nuc_rep.at(z);
 
-    Molecule molecule(temp_xyz, basis_path, p, q);
-    // Calculate the energies for this molecule configuration
-    // Log the result to the output csv
-    molecule.SCF(config_file_path);
-    log << current_r << ',' << molecule.CNDO2_.total_energy << '\n';
+      // Equal and opposite repulsion on Atom B
+      gradient_nuclear_.x.at(id_B) -= nuc_rep.at(x);
+      gradient_nuclear_.y.at(id_B) -= nuc_rep.at(y);
+      gradient_nuclear_.z.at(id_B) -= nuc_rep.at(z);
+    }
   }
+}
+
+void Molecule::totalGradient() {
+  gradient_total_.x = gradient_electronic_.x + gradient_nuclear_.x;
+  gradient_total_.y = gradient_electronic_.y + gradient_nuclear_.y;
+  gradient_total_.z = gradient_electronic_.z + gradient_nuclear_.z;
+}
+
+arma::mat Molecule::gradVecsToMat(Gradient &g) {
+  arma::mat grad_mat;
+  grad_mat = arma::join_vert(g.x, arma::join_vert(g.y, g.z));
+  return grad_mat;
+}
+
+double Molecule::calcEnergyAndForces() {
+
+  // Zero all the gradients to start fresh
+  zeroGradient(gradient_electronic_);
+  zeroGradient(gradient_nuclear_);
+  zeroGradient(gradient_total_);
+
+  S_ = contractedOverlapMatrix(*this);
+
+  // Reset density matrices
+  P_total_.zeros(N_basis_funcs_, N_basis_funcs_);
+  P_alpha_.zeros(N_basis_funcs_, N_basis_funcs_);
+  P_beta_.zeros(N_basis_funcs_, N_basis_funcs_);
+
+  // Perform SCF and calculate gradients
+  // SCF call initially recalculates gamma and core hamiltonian
+  this->SCF(false);
+  this->electronicGradient();
+  this->nuclearGradient();
+  this->totalGradient();
+  // Return the total energy after SCF
+  return this->CNDO2_.total_energy;
+}
+
+// === Geometry Optimization ===
+
+Molecule Molecule::copyMolecule() {
+  Molecule copy(*this);
+  return copy;
+}
+
+void Molecule::steepestDescentOptimizer(double step, double force_threshold) {
+  Molecule temp_mol = this->copyMolecule();
+  bool converged = false;
+  int counter = 0;
+  int max_iterations = 1000;
+
+  double E_new = 0.0;
+  double E_old = calcEnergyAndForces();
+
+  std::cout << "Initial energy: " << E_old << '\n';
+
+  while ((!converged) && (counter < max_iterations)) {
+
+    // sync coordinate storage locations
+    temp_mol.basis_funcs_ = this->basis_funcs_;
+    temp_mol.id_to_coords_ = this->id_to_coords_;
+    temp_mol.id_to_global_AO_ = this->id_to_global_AO_;
+
+    double global_max_force = 0.0;
+
+    // iterate through each atom and determine potential coordinates
+    for (int atom_id = 0; atom_id < n_atoms_; ++atom_id) {
+      double xforce = -gradient_total_.x.at(atom_id);
+      double yforce = -gradient_total_.y.at(atom_id);
+      double zforce = -gradient_total_.z.at(atom_id);
+
+      double local_max_force =
+          std::max({std::abs(xforce), std::abs(yforce), std::abs(zforce)});
+      global_max_force = std::max(global_max_force, local_max_force);
+
+      // Iterate through all AOs and update temp mols coords
+      // If condition met will copy temp coords into this molecule
+      int x = 0, y = 1, z = 2;
+
+      // Sync nuclei coords used by nuclear repulsion calculation
+      temp_mol.id_to_coords_.at(atom_id).at(x) =
+          this->id_to_coords_.at(atom_id).at(x) + (xforce * step);
+      temp_mol.id_to_coords_.at(atom_id).at(y) =
+          this->id_to_coords_.at(atom_id).at(y) + (yforce * step);
+      temp_mol.id_to_coords_.at(atom_id).at(z) =
+          this->id_to_coords_.at(atom_id).at(z) + (zforce * step);
+
+      std::vector<globalAO> AOs = id_to_global_AO_.at(atom_id);
+      for (int i = 0; i < AOs.size(); ++i) {
+        int global_idx = AOs.at(i).globalIDX;
+        AtomicOrbital &AO = this->basis_funcs_.at(global_idx);
+        AtomicOrbital &AO_temp = temp_mol.basis_funcs_.at(global_idx);
+
+        AO_temp.coords.at(x) = AO.coords.at(x) + (xforce * step);
+        AO_temp.coords.at(y) = AO.coords.at(y) + (yforce * step);
+        AO_temp.coords.at(z) = AO.coords.at(z) + (zforce * step);
+
+        // Update globalAO copies used by analytical gradients
+        temp_mol.id_to_global_AO_.at(atom_id).at(i).globalAO.coords =
+            AO_temp.coords;
+      }
+    }
+
+    if (global_max_force < force_threshold) {
+      converged = true;
+      std::cout << "Final Energy after " << counter << " iterations: " << E_old
+                << '\n';
+      break;
+    }
+
+    // determine new energy from potential coords
+    // only update actual coords if energy decreased
+    // increase step size by fixed amount in this case
+    E_new = temp_mol.calcEnergyAndForces();
+    if (E_new < E_old) {
+      this->basis_funcs_ = temp_mol.basis_funcs_;
+      this->id_to_coords_ = temp_mol.id_to_coords_;
+      this->id_to_global_AO_ = temp_mol.id_to_global_AO_;
+      this->gradient_total_ = temp_mol.gradient_total_;
+      step *= 1.2;
+      E_old = E_new;
+      // if energy increased, only decrease step size
+    } else {
+      step *= 0.8;
+    }
+
+    ++counter;
+  }
+}
+
+void Molecule::printCoords() {
+  int x = 0, y = 1, z = 2;
+  for (int atom_id = 0; atom_id < n_atoms_; ++atom_id) {
+    arma::rowvec &coords = id_to_coords_.at(atom_id);
+    int atomic_num = id_to_atomic_num_.at(atom_id);
+    std::cout << atomic_num << ' ' << coords.at(x) << ' ' << coords.at(y) << ' '
+              << coords.at(z) << '\n';
+  }
+}
+
+void Molecule::geometricProperties() {
+  double bohr_to_angstrom = 0.529177;
+  std::cout << "Geometry parameters:\n";
+
+  arma::rowvec R_A = id_to_coords_.at(0);
+  arma::rowvec R_B1 = id_to_coords_.at(1);
+
+  // Calculate first bond length
+  arma::rowvec vec_A_B1 = R_B1 - R_A;
+  double bond_length_1 = arma::norm(vec_A_B1);
+  std::cout << "A-B1 bond length (A): " << bond_length_1 * bohr_to_angstrom
+            << '\n';
+
+  if (n_atoms_ >= 3) {
+    arma::rowvec R_B2 = id_to_coords_.at(2);
+    // calculate the bond lengths
+    arma::rowvec vec_A_B2 = R_B2 - R_A;
+    double bond_length_2 = arma::norm(vec_A_B2);
+
+    // use dot product to calculate the bond angle
+    double dot_product = arma::dot(vec_A_B1, vec_A_B2);
+    double cos_theta = dot_product / (bond_length_1 * bond_length_2);
+
+    // convert radians to degrees
+    double bond_angle_rad = std::acos(cos_theta);
+    double bond_angle_deg = bond_angle_rad * (180.0 / M_PI);
+
+    std::cout << "A-B2 bond length (A): " << bond_length_2 * bohr_to_angstrom
+              << '\n';
+    std::cout << "Bond angle (degrees): " << bond_angle_deg << '\n';
+  }
+}
+
+// === Parsing Utilities ===
+
+/**
+ * @brief Parse atoms and build atomic orbitals from coordinate and basis files.
+ *
+ * Generates the vector of AOs that will be stored in the Molecule class.
+ * Called from the Molecule class during construction.
+ *
+ */
+std::vector<AtomicOrbital> Molecule::parse_atoms(const fs::path &atoms_path,
+                                                 const fs::path &basis_path) {
+  std::vector<AtomicOrbital> atoms;
+  std::ifstream file(atoms_path);
+  std::map<int, std::map<int, std::vector<PrimitiveGaussian>>> basis_map =
+      extract_basis(basis_path);
+
+  if (!file.is_open()) {
+    std::cerr << "Error: could not open " << atoms_path << '\n';
+    return atoms;
+  }
+
+  std::string line;
+  int num_atoms = 0;
+
+  if (std::getline(file, line)) {
+    std::stringstream ss(line);
+    ss >> num_atoms;
+    this->n_atoms_ = num_atoms;
+  }
+
+  // skip comment line
+  std::getline(file, line);
+
+  // parse atom data
+  int atom_id = 0;
+  for (int i = 0; i < num_atoms; ++i) {
+    double x, y, z;
+    int atomic_number;
+    if (std::getline(file, line)) {
+      std::stringstream ss(line);
+      ss >> atomic_number >> x >> y >> z;
+
+      for (const auto &pair : basis_map[atomic_number]) {
+        std::vector<PrimitiveGaussian> basis = pair.second;
+        Shells shell(pair.first); // momentum from basis map key to get shell
+        for (arma::uword i = 0; i < shell.L.n_rows; ++i) {
+          arma::rowvec momentum = shell.L.row(i);
+          // pair.second is vector of three primitive gaussians
+          AtomicOrbital atom(atomic_number, atom_id, x, y, z, pair.first,
+                             momentum, basis);
+          calculateNormalization(atom);
+          // Track global AOs mapped to atom_id
+          int global_AO_idx = atoms.size();
+          globalAO gao = {global_AO_idx, atom};
+          id_to_global_AO_[atom_id].push_back(gao);
+          atoms.push_back(atom);
+        }
+      }
+      id_to_atomic_num_[atom_id] = atomic_number;
+      id_to_coords_[atom_id] = arma::rowvec{x, y, z};
+      atom_id += 1;
+    }
+  }
+  return atoms;
 }
