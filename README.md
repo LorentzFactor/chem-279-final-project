@@ -1,5 +1,7 @@
 # HW 5 - Evaluating the Gradient of SCF Energy
 
+https://github.com/Berkeley-Chem-179-279/hw-5-achase206-1
+
 #### Alex Chase 
 achase95@berkeley.edu
 
