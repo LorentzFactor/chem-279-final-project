@@ -486,12 +486,28 @@ void Molecule::SCF(bool verbose) {
 
 // === Analytic Gradient Terms ===
 
+/**
+ * @brief Zero all Cartesian components of a gradient container.
+ * @param g Gradient vectors to reset.
+ */
 void Molecule::zeroGradient(Gradient &g) {
   g.x.zeros(n_atoms_);
   g.y.zeros(n_atoms_);
   g.z.zeros(n_atoms_);
 }
 
+/**
+ * @brief Evaluate \f$\partial S_{uv}/\partial R_{u,\mathrm{dim}}\f$ for one
+ * Cartesian direction.
+ *
+ * Performs primitive-pair contraction and multiplies by overlaps in the other
+ * two Cartesian directions.
+ *
+ * @param dim Cartesian index (0=x, 1=y, 2=z).
+ * @param u First atomic orbital.
+ * @param v Second atomic orbital.
+ * @return Directional derivative of the AO overlap integral.
+ */
 double Molecule::calcDerivative3D(int dim, AtomicOrbital &u, AtomicOrbital &v) {
   int num_prim_gauss = u.prim_gauss.size();
   int num_dims = 3;
@@ -539,6 +555,15 @@ double Molecule::calcDerivative3D(int dim, AtomicOrbital &u, AtomicOrbital &v) {
   return total_dS_dDIM;
 }
 
+/**
+ * @brief Accumulate the overlap-driven contribution to the electronic gradient.
+ *
+ * Fills the cached overlap derivative tensor for an atom pair and applies
+ * equal-and-opposite force updates to both atoms.
+ *
+ * @param id_A First atom index.
+ * @param id_B Second atom index.
+ */
 void Molecule::gradOverlapTerm(int id_A, int id_B) {
 
   // pack up the AOs for each Atom
@@ -587,6 +612,15 @@ void Molecule::gradOverlapTerm(int id_A, int id_B) {
   }
 }
 
+/**
+ * @brief Compute the derivative of the CNDO/2 \f$(00|00)\f$ helper integral.
+ *
+ * @param aoA First orbital center.
+ * @param aoB Second orbital center.
+ * @param sigmaA Effective Gaussian width parameter for center A.
+ * @param sigmaB Effective Gaussian width parameter for center B.
+ * @return Cartesian derivative vector of the helper integral.
+ */
 arma::rowvec Molecule::calc00Derivative(const AtomicOrbital &aoA,
                                         const AtomicOrbital &aoB, double sigmaA,
                                         double sigmaB) {
@@ -615,6 +649,17 @@ arma::rowvec Molecule::calc00Derivative(const AtomicOrbital &aoA,
   return deriv_00;
 }
 
+/**
+ * @brief Compute Cartesian derivatives of contracted CNDO/2
+ * \f$\gamma_{AB}\f$.
+ *
+ * Performs full primitive-pair contraction and returns the derivative vector
+ * in eV.
+ *
+ * @param aoA First atom-centered s-orbital.
+ * @param aoB Second atom-centered s-orbital.
+ * @return \f$(d\gamma/dx, d\gamma/dy, d\gamma/dz)\f$ for atom-pair AB.
+ */
 arma::rowvec Molecule::calcGammaDerivative(const AtomicOrbital &aoA,
                                            const AtomicOrbital &aoB) {
   double ev_AU_conv = 27.211324570273;
@@ -655,6 +700,17 @@ arma::rowvec Molecule::calcGammaDerivative(const AtomicOrbital &aoA,
   return deriv_gamma;
 }
 
+/**
+ * @brief Accumulate the gamma/repulsion contribution to the electronic
+ * gradient.
+ *
+ * Builds the CNDO/2 \f$Y_{AB}\f$ prefactor from atomic populations, evaluates
+ * \f$\nabla\gamma_{AB}\f$, stores the pair derivative cache, and applies
+ * equal-and-opposite force updates.
+ *
+ * @param id_A First atom index.
+ * @param id_B Second atom index.
+ */
 void Molecule::gradRepulsionTerm(int id_A, int id_B) {
   // pack up the AOs for each Atom
   std::vector<globalAO> &AOs_A = id_to_global_AO_[id_A];
@@ -728,6 +784,12 @@ void Molecule::gradRepulsionTerm(int id_A, int id_B) {
   gradient_electronic_.z.at(id_B) -= y_AB * gamma_deriv.at(z);
 }
 
+/**
+ * @brief Assemble the full electronic force contribution.
+ *
+ * Loops over unique atom pairs and accumulates both repulsion and overlap
+ * terms.
+ */
 void Molecule::electronicGradient() {
   for (int id_A = 0; id_A < n_atoms_; ++id_A) {
     for (int id_B = id_A + 1; id_B < n_atoms_; ++id_B) {
@@ -737,6 +799,15 @@ void Molecule::electronicGradient() {
   }
 }
 
+/**
+ * @brief Compute derivative of classical nuclear repulsion for one atom pair.
+ *
+ * @param RA Coordinates of atom A.
+ * @param RB Coordinates of atom B.
+ * @param ZA Valence charge on atom A.
+ * @param ZB Valence charge on atom B.
+ * @return Cartesian derivative vector in eV/bohr.
+ */
 arma::rowvec Molecule::nucRepulsionDeriv(arma::rowvec &RA, arma::rowvec &RB,
                                          double ZA, double ZB) {
   double ev_AU_conv = 27.211324570273;
@@ -752,6 +823,11 @@ arma::rowvec Molecule::nucRepulsionDeriv(arma::rowvec &RA, arma::rowvec &RB,
   return nuc_repulse_result * ev_AU_conv;
 }
 
+/**
+ * @brief Assemble the full nuclear repulsion force contribution.
+ *
+ * Loops over unique atom pairs and applies equal-and-opposite nuclear forces.
+ */
 void Molecule::nuclearGradient() {
   int x = 0, y = 1, z = 2;
   for (int id_A = 0; id_A < n_atoms_; ++id_A) {
@@ -779,18 +855,32 @@ void Molecule::nuclearGradient() {
   }
 }
 
+/** @brief Sum electronic and nuclear force components into total gradient. */
 void Molecule::totalGradient() {
   gradient_total_.x = gradient_electronic_.x + gradient_nuclear_.x;
   gradient_total_.y = gradient_electronic_.y + gradient_nuclear_.y;
   gradient_total_.z = gradient_electronic_.z + gradient_nuclear_.z;
 }
 
+/**
+ * @brief Convert gradient component vectors into a stacked matrix.
+ * @param g Gradient container with x/y/z vectors.
+ * @return Matrix \f$[g_x; g_y; g_z]\f$.
+ */
 arma::mat Molecule::gradVecsToMat(Gradient &g) {
   arma::mat grad_mat;
   grad_mat = arma::join_vert(g.x, arma::join_vert(g.y, g.z));
   return grad_mat;
 }
 
+/**
+ * @brief Recompute SCF energy and all analytic force components.
+ *
+ * Resets gradient and density storage, runs SCF, then assembles electronic,
+ * nuclear, and total gradients.
+ *
+ * @return Current total CNDO/2 energy in eV.
+ */
 double Molecule::calcEnergyAndForces() {
 
   // Zero all the gradients to start fresh
@@ -817,11 +907,22 @@ double Molecule::calcEnergyAndForces() {
 
 // === Geometry Optimization ===
 
+/** @brief Return a value copy of the current molecule object. */
 Molecule Molecule::copyMolecule() {
   Molecule copy(*this);
   return copy;
 }
 
+/**
+ * @brief Optimize geometry by adaptive steepest-descent steps.
+ *
+ * Proposes coordinate updates from the current force, accepts steps that lower
+ * energy, and adapts step size until the force threshold is reached or the
+ * iteration cap is hit.
+ *
+ * @param step Initial displacement scaling factor.
+ * @param force_threshold Convergence threshold on maximum force component.
+ */
 void Molecule::steepestDescentOptimizer(double step, double force_threshold) {
   Molecule temp_mol = this->copyMolecule();
   bool converged = false;
@@ -907,6 +1008,7 @@ void Molecule::steepestDescentOptimizer(double step, double force_threshold) {
   }
 }
 
+/** @brief Print atom atomic-numbers and Cartesian coordinates. */
 void Molecule::printCoords() {
   int x = 0, y = 1, z = 2;
   for (int atom_id = 0; atom_id < n_atoms_; ++atom_id) {
@@ -917,6 +1019,12 @@ void Molecule::printCoords() {
   }
 }
 
+/**
+ * @brief Print simple geometric observables from current coordinates.
+ *
+ * Reports the first A-B bond length and, when available, a second A-B bond
+ * length plus the included bond angle.
+ */
 void Molecule::geometricProperties() {
   double bohr_to_angstrom = 0.529177;
   std::cout << "Geometry parameters:\n";
