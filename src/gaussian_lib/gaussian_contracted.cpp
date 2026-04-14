@@ -41,7 +41,7 @@ namespace gaussian_lib {
                 double d_bj = gb.get_weights()[j];
                 std::array<double,3> gradient_term = integrate_product_dRa(ga.get_components()[i], gb.get_components()[j]);
                 for(size_t idim=0; idim<3; ++idim) {
-                    gradient[idim] += gradient_term[idim];
+                    gradient[idim] += d_ai * d_bj * gradient_term[idim];
                 }
             }
         }
