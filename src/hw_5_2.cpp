@@ -12,6 +12,8 @@
 #include <armadillo>
 #include <nlohmann/json.hpp> 
 
+#include "system_lib/system_lib.h"
+
 namespace fs = std::filesystem;
 using json = nlohmann::json;
 
@@ -37,11 +39,11 @@ int main(int argc, char **argv) {
   int num_alpha_electrons = config["num_alpha_electrons"];
   int num_beta_electrons = config["num_beta_electrons"];
 
+  system_lib::CNDO2System sys = system_lib::CNDO2System::from_files(atoms_file_path, "./basis", num_alpha_electrons, num_beta_electrons);
 
-
-  int num_atoms = 0; // You will have to replace this with the
+  int num_atoms = sys.num_atoms(); // You will have to replace this with the
                                       // number of atoms in the molecule
-  int num_basis_functions = 0; // you will have to replace this with the number of basis
+  int num_basis_functions = sys.num_orbitals(); // you will have to replace this with the number of basis
                        // sets in the molecule
   int num_3D_dims = 3;
 
@@ -83,7 +85,11 @@ int main(int argc, char **argv) {
 
   // most of your code will go here
 
+  // compute Suv_RA
+  arma::cube Suv_RA_cube = sys.compute_overlap_matrix_gradient();
 
+  // Convert it to expected (2d) output format
+  Suv_RA = Suv_RA_cube.reshape(3, num_basis_functions*num_basis_functions, 1).slice(0);
 
   // You do not need to modify the code below this point
 

@@ -21,6 +21,11 @@ namespace system_lib {
     /* Get total number of atomic orbitals in the system */
     size_t System::num_orbitals() const {
         return num_orbitals_;
+    }    
+    
+    /* Get total number of atoms in the system */
+    size_t System::num_atoms() const {
+        return atoms_.size();
     }
 
     /* Load a system of atoms from a set of atom position and basis files */
@@ -148,6 +153,39 @@ namespace system_lib {
             }
         }
         return S;
+    }
+
+    arma::cube System::compute_overlap_matrix_gradient() const {
+        std::vector<GaussianContracted> basis_functions{};
+        basis_functions.reserve(num_orbitals_);
+        for(const auto& atom: atoms_) {
+            for (const auto& orbital: atom.get_atomic_orbitals()) {
+                basis_functions.push_back(orbital);
+            }
+        }
+
+        // Initialize the total derivative of S -- dS -- to 0s 
+        arma::cube dS = arma::zeros(3, basis_functions.size(), basis_functions.size());
+
+        // Iterate through pairs of orbitals - make sure to not compare orbitals in the same atom
+        for (const auto& [begin, end] : atom_orbital_idxs) {
+            for (int i = begin; i < end; ++i) {
+                for (int j = end; j < basis_functions.size(); ++j) {
+                    
+                    auto orbital_i = basis_functions.at(i);
+                    auto orbital_j = basis_functions.at(j);
+
+                    // Compute partial derivative of overlap between orbitals w.r.t. Ra
+                    std::array<double, 3> local_gradient = integrate_product_dRa(orbital_i, orbital_j);
+                    for(size_t idim=0; idim<3; ++idim) {
+                        dS(idim, i, j) -= local_gradient[idim];
+                        // Use symmetry to compute derivative w.r.t. Rb
+                        dS(idim, j, i) += local_gradient[idim];
+                    }
+                }
+            }
+        }
+        return dS;
     }
 
     double System::compute_total_energy() const {

@@ -73,7 +73,9 @@ namespace system_lib {
         public:
             System(const std::vector<Atom>& atoms);
             arma::mat compute_overlap_matrix() const;
+            arma::cube compute_overlap_matrix_gradient() const;
             size_t num_orbitals() const;
+            size_t num_atoms() const;
             virtual double compute_electronic_energy() const = 0;
             double compute_nuclear_energy() const;
             double compute_total_energy() const;
