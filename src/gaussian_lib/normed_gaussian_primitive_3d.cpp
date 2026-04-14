@@ -59,10 +59,10 @@ namespace gaussian_lib {
         double Iy = integrate_product(ga.component(1), gb.component(1));
         double Iz = integrate_product(ga.component(2), gb.component(2));
 
-        std::array<double,3> gradient{
-            integrate_product_dxa(ga.component(0), gb.component(0)) * Iy * Iz;
-            integrate_product_dxa(ga.component(1), gb.component(1)) * Ix * Iz;
-            integrate_product_dxa(ga.component(2), gb.component(2)) * Ix * Iy;
+        std::array<double,3> gradient {
+            integrate_product_dxa(ga.component(0), gb.component(0)) * Iy * Iz,
+            integrate_product_dxa(ga.component(1), gb.component(1)) * Ix * Iz,
+            integrate_product_dxa(ga.component(2), gb.component(2)) * Ix * Iy,
         };
 
         for (auto& elm : gradient) {
