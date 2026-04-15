@@ -28,7 +28,6 @@ namespace gaussian_lib {
             y_component(iy) = components_[1](y_points[iy]);
         }
 
-        // Note that we apply the norm to the last dimension to reduce number of division operations
         arma::vec z_component = arma::vec(z_points.size());
         for (int iz = 0; iz < z_points.size(); ++iz) {
             z_component(iz) = components_[2](z_points[iz]);
