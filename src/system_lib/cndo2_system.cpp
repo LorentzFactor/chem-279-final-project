@@ -224,6 +224,26 @@ namespace system_lib {
         return dS;
     }
 
+    arma::cube CNDO2System::compute_gamma_matrix_gradient() const {
+        arma::cube dGamma = arma::zeros(3, atoms_.size(), atoms_.size());
+
+        for(size_t iatom = 0; iatom < atoms_.size(); ++iatom) {
+            const auto& atom_i = atoms_.at(iatom);
+            for(size_t jatom = 0; jatom < atoms_.size(); ++jatom) {
+                // Skip case where iatom = jatom
+                if (iatom == jatom) continue;
+
+                const auto& atom_j = atoms_.at(jatom);
+                arma::vec3 term = calculate_gamma_dRa(atom_i.get_atomic_orbitals().at(0), atom_j.get_atomic_orbitals().at(0));
+                for(size_t idim = 0; idim < 3; ++idim) {
+                    dGamma(idim, iatom, jatom) = term(idim);
+                }
+            }
+        }
+
+        return dGamma;
+    }
+
     arma::mat CNDO2System::get_occupied_MOs_alpha() const {
         if (p_>0)
             return mos_alpha_.cols(arma::span(0, p_-1));

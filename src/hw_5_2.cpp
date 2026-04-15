@@ -91,6 +91,10 @@ int main(int argc, char **argv) {
   // Convert it to expected (2d) output format
   Suv_RA = Suv_RA_cube.reshape(3, num_basis_functions*num_basis_functions, 1).slice(0);
 
+  // Do the same for gamma_RA
+  arma::cube gamma_RA_cube = sys.compute_gamma_matrix_gradient();
+  gammaAB_RA = gamma_RA_cube.reshape(3, num_atoms*num_atoms, 1).slice(0);
+
   // You do not need to modify the code below this point
 
   // Set print configs

@@ -110,5 +110,10 @@ namespace gaussian_lib {
         double sigma_A, double sigma_B,
         const std::array<double,3>& RA, const std::array<double,3>& RB
     );
+    arma::vec3 calculate_gamma_base_term_dRa(
+        double sigma_A, double sigma_B,
+        const std::array<double,3>& RA, const std::array<double,3>& RB
+    );
     double calculate_gamma(const GaussianContracted& ga, const GaussianContracted& gb);
+    arma::vec3 calculate_gamma_dRa(const GaussianContracted& ga, const GaussianContracted& gb);
 }

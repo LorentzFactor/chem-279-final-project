@@ -144,6 +144,7 @@ namespace system_lib {
             double compute_electronic_energy() const override;
 
             arma::cube compute_overlap_matrix_gradient() const;
+            arma::cube compute_gamma_matrix_gradient() const;
             
     };
 
