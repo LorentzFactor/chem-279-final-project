@@ -73,7 +73,6 @@ namespace system_lib {
         public:
             System(const std::vector<Atom>& atoms);
             arma::mat compute_overlap_matrix() const;
-            arma::cube compute_overlap_matrix_gradient() const;
             size_t num_orbitals() const;
             size_t num_atoms() const;
             virtual double compute_electronic_energy() const = 0;
@@ -143,6 +142,9 @@ namespace system_lib {
             std::pair<arma::mat,arma::mat> compute_cndo_f_matrix() const;
             arma::mat compute_h_core() const;
             double compute_electronic_energy() const override;
+
+            arma::cube compute_overlap_matrix_gradient() const;
+            
     };
 
     double distance(const Atom& a1, const Atom& a2);

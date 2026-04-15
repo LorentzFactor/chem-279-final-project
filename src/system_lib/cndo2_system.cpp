@@ -191,6 +191,39 @@ namespace system_lib {
                              arma::accu(p_beta_%(h_core+f_beta_)));
     }
 
+    arma::cube CNDO2System::compute_overlap_matrix_gradient() const {
+        std::vector<GaussianContracted> basis_functions{};
+        basis_functions.reserve(num_orbitals_);
+        for(const auto& atom: atoms_) {
+            for (const auto& orbital: atom.get_atomic_orbitals()) {
+                basis_functions.push_back(orbital);
+            }
+        }
+
+        // Initialize the total derivative of S -- dS -- to zeros 
+        arma::cube dS = arma::zeros(3, basis_functions.size(), basis_functions.size());
+
+        // Iterate through pairs of orbitals - make sure to not compare orbitals in the same atom
+        for (const auto& [begin, end] : atom_orbital_idxs) {
+            for (int i = begin; i < end; ++i) {
+                for (int j = end; j < basis_functions.size(); ++j) {
+                    
+                    auto orbital_i = basis_functions.at(i);
+                    auto orbital_j = basis_functions.at(j);
+
+                    // Compute partial derivative of overlap between orbitals w.r.t. Ra
+                    std::array<double, 3> local_gradient = integrate_product_dRa(orbital_i, orbital_j);
+                    for(size_t idim=0; idim<3; ++idim) {
+                        dS(idim, i, j) -= local_gradient[idim];
+                        // Use symmetry to compute derivative w.r.t. Rb
+                        dS(idim, j, i) += local_gradient[idim];
+                    }
+                }
+            }
+        }
+        return dS;
+    }
+
     arma::mat CNDO2System::get_occupied_MOs_alpha() const {
         if (p_>0)
             return mos_alpha_.cols(arma::span(0, p_-1));
@@ -257,4 +290,6 @@ namespace system_lib {
         }
         return values;
     }
+
+    
 }
