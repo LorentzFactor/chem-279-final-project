@@ -85,6 +85,56 @@ int main(int argc, char **argv) {
 
   // most of your code will go here
 
+  // Converge output
+
+    arma::mat S = sys.compute_overlap_matrix();
+    arma::mat reduced_gamma = sys.compute_reduced_gamma_matrix();
+    arma::mat gamma = sys.compute_gamma_matrix();
+    arma::mat beta = sys.compute_beta_matrix();
+
+    int p = num_alpha_electrons;
+    int q = num_beta_electrons;
+
+    arma::mat p_alpha = arma::mat(sys.num_orbitals(), sys.num_orbitals(), arma::fill::zeros) * (p/(sys.num_orbitals()*sys.num_orbitals()));
+    arma::mat p_beta = arma::mat(sys.num_orbitals(), sys.num_orbitals(), arma::fill::zeros) *(q/(sys.num_orbitals()*sys.num_orbitals()));
+    arma::mat p_tot = p_alpha + p_beta;
+    sys.set_p(p_alpha, p_beta);
+
+    arma::mat p_a_old;
+    arma::mat p_b_old;
+    arma::mat p_tot_old;
+
+    const arma::mat& f_alpha = sys.get_f_alpha();
+    const arma::mat& f_beta = sys.get_f_beta();
+
+    f_alpha.save(arma::hdf5_name(output_file_path, "Fa_initial", arma::hdf5_opts::replace));
+    f_beta.save(arma::hdf5_name(output_file_path, "Fb_initial", arma::hdf5_opts::replace));
+
+    for(size_t i = 0; i < 1e3; ++i) {
+
+      p_a_old = sys.get_p_alpha();
+      p_b_old = sys.get_p_beta();
+      p_tot_old = p_a_old + p_b_old;
+
+      p_alpha = sys.get_occupied_MOs_alpha() * sys.get_occupied_MOs_alpha().t();
+      p_beta = sys.get_occupied_MOs_beta() * sys.get_occupied_MOs_beta().t();
+      
+      sys.set_p(p_alpha, p_beta);
+      
+      p_tot = p_alpha + p_beta;
+
+      std::cout << "Step: " << i+1 << std::endl;
+      std::cout << "Energy: " << std::setprecision(9) << sys.compute_total_energy() << std::endl;
+
+      if (
+        arma::approx_equal(p_alpha, p_a_old, "absdiff", 1e-6) &&
+        arma::approx_equal(p_beta, p_b_old, "absdiff", 1e-6)
+        ) {
+        std::cout <<"n iters: " << i << std::endl;
+        break;
+      }
+    }
+
   // compute Suv_RA
   arma::cube Suv_RA_cube = sys.compute_overlap_matrix_gradient();
 
@@ -94,6 +144,15 @@ int main(int argc, char **argv) {
   // Do the same for gamma_RA
   arma::cube gamma_RA_cube = sys.compute_gamma_matrix_gradient();
   gammaAB_RA = gamma_RA_cube.reshape(3, num_atoms*num_atoms, 1).slice(0);
+
+  // Compute electronic gradient
+  gradient_electronic = sys.E_electronic_dRA();
+
+  // Compute nuclear gradient
+  gradient_nuclear = sys.E_nuclear_dRA();
+
+  // Compute total gradient
+  gradient = gradient_electronic + gradient_nuclear;
 
   // You do not need to modify the code below this point
 

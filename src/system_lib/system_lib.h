@@ -62,6 +62,7 @@ namespace system_lib {
             const std::vector<GaussianContracted>& get_atomic_orbitals() const {return atomic_orbitals_;};
             int num_orbitals() const {return atomic_orbitals_.size();};
             const std::vector<std::string>& get_orbital_names() const {return orbital_names_;};
+            const std::array<double,3>& get_position() const {return position_;};
     };
 
     struct System {
@@ -105,6 +106,9 @@ namespace system_lib {
                 const arma::mat& p_beta
             ) const;
 
+            arma::mat x() const;
+            arma::mat y() const;
+
         public:
             CNDO2System(const std::vector<Atom>& atoms, int p, int q);
             static CNDO2System from_files(std::string atoms_filepath, std::string basis_directory, int p, int q);
@@ -145,7 +149,8 @@ namespace system_lib {
 
             arma::cube compute_overlap_matrix_gradient() const;
             arma::cube compute_gamma_matrix_gradient() const;
-            
+            arma::mat E_electronic_dRA() const;
+            arma::mat E_nuclear_dRA() const;
     };
 
     double distance(const Atom& a1, const Atom& a2);

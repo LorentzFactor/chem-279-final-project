@@ -244,6 +244,95 @@ namespace system_lib {
         return dGamma;
     }
 
+    arma::mat CNDO2System::E_electronic_dRA() const {
+        arma::mat gradient = arma::zeros(3, atoms_.size());
+
+        arma::cube dS = compute_overlap_matrix_gradient();
+        arma::cube dGamma = compute_gamma_matrix_gradient();
+        arma::mat p_tot = p_alpha_ + p_beta_;
+
+        // Compute the density across each atom
+        arma::vec p_AA = arma::zeros(atoms_.size());
+        arma::vec p_diag = p_tot.diag();
+        for (size_t iatom = 0; iatom < atoms_.size(); iatom++) {
+            std::array<size_t,2> indices = atom_orbital_idxs[iatom];
+            p_AA(iatom) = arma::sum(p_diag.subvec(indices[0], indices[1]-1));
+        }
+
+       for(size_t iatom = 0; iatom < atoms_.size(); ++iatom) {
+            const Atom& atom_i = atoms_.at(iatom);
+
+            // Compute the x_mu,nu dS_mu,nu term
+            for(size_t iao = atom_orbital_idxs[iatom][0]; iao < atom_orbital_idxs[iatom][1]; ++iao) {
+                for(size_t jatom = 0; jatom < atoms_.size(); ++jatom) {
+                    if (jatom == iatom) continue;
+
+                    double prefactor = (atom_i.get_atom_constant("neg_beta")+atoms_.at(jatom).get_atom_constant("neg_beta"));
+
+                    for(size_t jao = atom_orbital_idxs[jatom][0]; jao < atom_orbital_idxs[jatom][1]; ++jao) {
+                        for(size_t idim = 0; idim < 3; ++idim) {
+                            gradient(idim, iatom) += prefactor * (p_alpha_(iao, jao) + p_beta_(iao, jao)) * dS(idim, iao, jao);
+                        }
+                    }
+                }
+            }
+        
+            // Compute the y_A,B dGamma_A,B term
+            for(size_t jatom = 0; jatom < atoms_.size(); ++jatom) {
+                if (jatom == iatom) continue;
+
+                const Atom& atom_j = atoms_.at(jatom);
+
+                double prefactor = p_AA(iatom)*p_AA(jatom);
+                prefactor -= p_AA(iatom)*atoms_.at(jatom).get_atom_constant("Z_A");
+                prefactor -= p_AA(jatom)*atoms_.at(iatom).get_atom_constant("Z_A");
+
+                for(size_t iao = atom_orbital_idxs[iatom][0]; iao < atom_orbital_idxs[iatom][1]; ++iao) {
+                    for(size_t jao = atom_orbital_idxs[jatom][0]; jao < atom_orbital_idxs[jatom][1]; ++jao) {
+                        prefactor -= p_alpha_(iao, jao) * p_alpha_(iao, jao) + p_beta_(iao, jao) * p_beta_(iao, jao);
+                    }
+                }
+                
+                for(size_t idim = 0; idim < 3; ++idim) {
+                    gradient(idim, iatom) += prefactor * dGamma(idim, iatom, jatom);
+                }
+            }
+        }
+
+       return -gradient;
+    }
+
+    arma::mat CNDO2System::E_nuclear_dRA() const {
+        arma::mat gradient = arma::zeros(3, atoms_.size());
+
+        for(size_t iatom = 0; iatom < atoms_.size(); ++iatom) {
+            const Atom& atom_i = atoms_.at(iatom);
+            for(size_t jatom = 0; jatom < atoms_.size(); ++jatom) {
+                if (jatom == iatom) continue;
+
+                const Atom& atom_j = atoms_.at(jatom);
+                double nuclear_prefactor = atom_i.get_atom_constant("Z_A");
+                nuclear_prefactor *= atom_j.get_atom_constant("Z_A");
+                arma::vec3 RA, RB;
+                std::copy(
+                    std::begin(atom_i.get_position()),
+                    std::end(atom_i.get_position()),
+                    std::begin(RA)
+                );
+                std::copy(
+                    std::begin(atom_j.get_position()),
+                    std::end(atom_j.get_position()),
+                    std::begin(RB)
+                );
+
+                nuclear_prefactor *= 1/std::pow(arma::norm(RA-RB), 3);
+                nuclear_prefactor *=  27.211324570273;
+                gradient.col(iatom) += nuclear_prefactor * (RB-RA);
+            }
+        }
+        return gradient;
+    }
+    
     arma::mat CNDO2System::get_occupied_MOs_alpha() const {
         if (p_>0)
             return mos_alpha_.cols(arma::span(0, p_-1));
