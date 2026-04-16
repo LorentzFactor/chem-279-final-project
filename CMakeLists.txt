@@ -53,13 +53,19 @@ add_library(system_lib
     src/system_lib/system.cpp
     src/system_lib/cndo2_system.cpp
 )
+add_library(solver_lib
+    src/solver_lib/cndo2_fixed_point_solver.cpp
+)
 
 target_include_directories(integration_tools PUBLIC ${PROJECT_SOURCE_DIR}/src)
 target_include_directories(gaussian_lib PUBLIC ${PROJECT_SOURCE_DIR}/src)
 target_include_directories(system_lib PUBLIC ${PROJECT_SOURCE_DIR}/src)
+target_include_directories(solver_lib PUBLIC ${PROJECT_SOURCE_DIR}/src)
 
 add_executable(hw_5_2 src/hw_5_2.cpp)
 
 target_link_libraries(gaussian_lib PRIVATE integration_tools)
 target_link_libraries(system_lib PRIVATE gaussian_lib)
+target_link_libraries(solver_lib PRIVATE system_lib)
 target_link_libraries(hw_5_2 PRIVATE system_lib)
+target_link_libraries(hw_5_2 PRIVATE solver_lib)
