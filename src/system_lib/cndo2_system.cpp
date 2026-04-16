@@ -305,27 +305,30 @@ namespace system_lib {
 
         for(size_t iatom = 0; iatom < atoms_.size(); ++iatom) {
             const Atom& atom_i = atoms_.at(iatom);
-            for(size_t jatom = 0; jatom < atoms_.size(); ++jatom) {
-                if (jatom == iatom) continue;
+            arma::vec3 RA;
+            std::copy(
+                std::begin(atom_i.get_position()),
+                std::end(atom_i.get_position()),
+                std::begin(RA)
+            );
+
+            for(size_t jatom = iatom+1; jatom < atoms_.size(); ++jatom) {
 
                 const Atom& atom_j = atoms_.at(jatom);
                 double nuclear_prefactor = atom_i.get_atom_constant("Z_A");
                 nuclear_prefactor *= atom_j.get_atom_constant("Z_A");
-                arma::vec3 RA, RB;
-                std::copy(
-                    std::begin(atom_i.get_position()),
-                    std::end(atom_i.get_position()),
-                    std::begin(RA)
-                );
+                arma::vec3 RB;
                 std::copy(
                     std::begin(atom_j.get_position()),
                     std::end(atom_j.get_position()),
                     std::begin(RB)
                 );
 
-                nuclear_prefactor *= 1/std::pow(arma::norm(RA-RB), 3);
+                arma::vec3 delta = RA-RB;
+                nuclear_prefactor *= 1/std::pow(arma::norm(delta), 3);
                 nuclear_prefactor *=  27.211324570273;
-                gradient.col(iatom) += nuclear_prefactor * (RB-RA);
+                gradient.col(iatom) -= nuclear_prefactor * delta;
+                gradient.col(jatom) += nuclear_prefactor * delta;
             }
         }
         return gradient;
