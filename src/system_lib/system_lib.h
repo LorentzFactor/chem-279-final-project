@@ -106,9 +106,6 @@ namespace system_lib {
                 const arma::mat& p_beta
             ) const;
 
-            arma::mat x() const;
-            arma::mat y() const;
-
         public:
             CNDO2System(const std::vector<Atom>& atoms, int p, int q);
             static CNDO2System from_files(std::string atoms_filepath, std::string basis_directory, int p, int q);
