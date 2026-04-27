@@ -38,7 +38,9 @@ namespace system_lib {
             std::array<char,3> momentums = {0,0,0};
             momentums[idim] = 1;
             atomic_orbitals_.push_back(p_basis.toFunction(position, momentums));
-            orbital_names_.emplace_back("p");
+            std::string p_label = "p";
+            p_label += (idim == 0) ? "x" : (idim == 1) ? "y" : "z";
+            orbital_names_.emplace_back(p_label);
         }
     }
 
