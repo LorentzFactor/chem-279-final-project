@@ -63,6 +63,7 @@ namespace system_lib {
             int num_orbitals() const {return atomic_orbitals_.size();};
             const std::vector<std::string>& get_orbital_names() const {return orbital_names_;};
             const std::array<double,3>& get_position() const {return position_;};
+            const short& get_atomic_number() const {return atomic_number_;};
     };
 
     struct System {
@@ -80,8 +81,9 @@ namespace system_lib {
             size_t num_atoms() const;
             virtual double compute_electronic_energy() = 0;
             double compute_nuclear_energy() const;
-            double compute_total_energy() const;
+            double compute_total_energy();
             const Atom& get_atom(size_t atom_idx) const {return atoms_.at(atom_idx);};
+            const std::vector<std::array<size_t, 2>>& get_atom_orbital_idxs() const {return atom_orbital_idxs;};
     };
 
     struct CNDO2System : public System {
@@ -153,10 +155,10 @@ namespace system_lib {
             arma::mat compute_h_core();
             double compute_electronic_energy() override;
 
-            arma::cube compute_overlap_matrix_gradient() const;
-            arma::cube compute_gamma_matrix_gradient() const;
-            arma::mat E_electronic_dRA() const;
-            arma::mat E_nuclear_dRA() const;
+            arma::cube compute_overlap_matrix_gradient();
+            arma::cube compute_gamma_matrix_gradient();
+            arma::mat E_electronic_dRA();
+            arma::mat E_nuclear_dRA() ;
 
             // Atom specific results
             /* Get the electron density surrounding a specific atom */
