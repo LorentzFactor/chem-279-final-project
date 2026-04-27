@@ -84,7 +84,7 @@ namespace nmr_lib {
         double delta_E = calculate_delta_E(system);
 
         // e^2*h_bar^2/(2m^2*c^2 \delta E)
-        double prefactor = 1.0736e2; // scaled to ppm by 1e6
+        double prefactor = 1.0736e2; // scaled to ppm by 1e6, assumes distances are in angstroms and delta_E is in eV
     
         sigma_p *= r3_2p * prefactor / delta_E;
         return -sigma_p;
