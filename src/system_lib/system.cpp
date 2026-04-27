@@ -16,6 +16,8 @@ namespace system_lib {
             num_orbitals_ += atom.num_orbitals();
             atom_orbital_idxs.push_back({before, num_orbitals_});
         }
+
+        S_ = arma::zeros(0,0);
     }
 
     /* Get total number of atomic orbitals in the system */
@@ -131,6 +133,10 @@ namespace system_lib {
 
     arma::mat System::compute_overlap_matrix() const {
 
+        if (S_.n_cols > 0) {
+            return S_;
+        }
+
         std::vector<GaussianContracted> basis_functions{};
         basis_functions.reserve(num_orbitals_);
         for(const auto& atom: atoms_) {
@@ -155,7 +161,7 @@ namespace system_lib {
         return S;
     }
 
-    double System::compute_total_energy() const {
+    double System::compute_total_energy() {
         return compute_nuclear_energy() + compute_electronic_energy();
     }
 }

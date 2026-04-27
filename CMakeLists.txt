@@ -53,6 +53,7 @@ add_library(system_lib
 )
 add_library(solver_lib
     src/solver_lib/cndo2_fixed_point_solver.cpp
+    src/solver_lib/cndo2_diis_solver.cpp
 )
 add_library(nmr_lib
     src/nmr_lib/nmr_lib.cpp
