@@ -3,6 +3,7 @@
 #include <format>
 #include <fstream>
 #include <iostream>
+#include <iomanip>
 #include <stdexcept>
 #include <stdio.h>
 #include <stdlib.h>
@@ -10,6 +11,7 @@
 #include <vector>
 
 #include <armadillo>
+#include <highfive/H5File.hpp>
 #include <nlohmann/json.hpp> 
 
 #include "system_lib/system_lib.h"
@@ -17,6 +19,13 @@
 
 namespace fs = std::filesystem;
 using json = nlohmann::json;
+using namespace HighFive;
+
+template <typename T>
+void write_to_high_five(File output_file, std::string name, T data) {
+     auto dataset = output_file.createDataSet<T>(name, DataSpace::From(data));
+     dataset.write(data);
+};
 
 int main(int argc, char **argv) {
   // check that a config file is supplied
@@ -50,7 +59,7 @@ int main(int argc, char **argv) {
 
   // Your answers go in these objects
   // Information about the convention of the requirements 
-  std::cout << "Order of columns for Suv_RA is as follows: (u,v)" << std::endl;
+  /*std::cout << "Order of columns for Suv_RA is as follows: (u,v)" << std::endl;
   for (int u = 0; u < num_basis_functions; u++) {
     for (int v = 0; v < num_basis_functions; v++) {
       std::cout << std::format("({},{}) ", u, v);
@@ -71,6 +80,7 @@ int main(int argc, char **argv) {
   std::cout << "x" << std::endl;
   std::cout << "y" << std::endl;
   std::cout << "z" << std::endl;
+  */
 
   arma::mat Suv_RA(num_3D_dims, num_basis_functions * num_basis_functions);
   // Ideally, this would be (3, n_funcs, n_funcs) rank-3 tensor
@@ -87,7 +97,10 @@ int main(int argc, char **argv) {
   // most of your code will go here
 
   // Solve for ground state using fixed point method
-  fixed_point::solve_cndo(sys);
+  //fixed_point::solve_cndo(sys);
+
+  // Solve for ground state using diis method
+  diis::solve_cndo(sys);
 
   // compute Suv_RA
   arma::cube Suv_RA_cube = sys.compute_overlap_matrix_gradient();
@@ -113,12 +126,13 @@ int main(int argc, char **argv) {
   // Set print configs
   std::cout << std::fixed << std::setprecision(4) << std::setw(8) << std::right;
 
-  // inspect your answer via printing
+  /*// inspect your answer via printing
   Suv_RA.print("Suv_RA");
   gammaAB_RA.print("gammaAB_RA");
   gradient_nuclear.print("gradient_nuclear");
   gradient_electronic.print("gradient_electronic");
   gradient.print("gradient");
+  */
 
   // check that output dir exists
   if (!fs::exists(output_file_path.parent_path())) {
@@ -130,6 +144,9 @@ int main(int argc, char **argv) {
   if (fs::exists(output_file_path)) {
     fs::remove(output_file_path);
   }
+
+  // Create high five file
+  File output_file(output_file_path.string(), File::Overwrite);
 
   // write results to file
   Suv_RA.save(
@@ -147,4 +164,12 @@ int main(int argc, char **argv) {
   gradient.save(
       arma::hdf5_name(output_file_path, "gradient",
                       arma::hdf5_opts::append + arma::hdf5_opts::trans));
+
+  write_to_high_five(output_file, "electronic_energy", sys.compute_electronic_energy());
+  write_to_high_five(output_file, "nuclear_energy", sys.compute_nuclear_energy());
+  write_to_high_five(output_file, "total_energy", sys.compute_total_energy());
+
+  //arma::cube spatial_electron_density = sys.get_electron_density_3d_grid({-14, 5}, {-14, 5}, {-14, 5}, 100);
+  //spatial_electron_density.save(arma::hdf5_name(output_file_path, "spatial_density", arma::hdf5_opts::replace));
+  std::cout << "energy: " << sys.compute_total_energy() << std::endl;
 }

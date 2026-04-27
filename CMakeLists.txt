@@ -55,6 +55,7 @@ add_library(system_lib
 )
 add_library(solver_lib
     src/solver_lib/cndo2_fixed_point_solver.cpp
+    src/solver_lib/cndo2_diis_solver.cpp
 )
 
 target_include_directories(integration_tools PUBLIC ${PROJECT_SOURCE_DIR}/src)

@@ -12,6 +12,7 @@ namespace system_lib {
         p_ = (double) p;
         q_ = (double) q;
         set_p(arma::zeros(num_orbitals_, num_orbitals_), arma::zeros(num_orbitals_, num_orbitals_));
+        beta_, gamma_, gamma_reduced_ = arma::zeros(0,0);
     }
 
     CNDO2System CNDO2System::from_files(std::string atoms_filepath, std::string basis_directory, int p, int q) {
@@ -36,16 +37,24 @@ namespace system_lib {
 
        // update fock matrices with new densities
        auto new_f = compute_cndo_f_matrix_internal(p_alpha_, p_beta_);
-       f_alpha_ = new_f.first;
-       f_beta_ = new_f.second;
-
-       // update molecular orbitals
-       arma::eig_sym(E_alpha_, mos_alpha_, f_alpha_);
-       arma::eig_sym(E_beta_, mos_beta_, f_beta_);
+       set_f(new_f.first, new_f.second);
     }
 
-    arma::mat CNDO2System::compute_gamma_matrix() const {
-        arma::mat gamma = arma::zeros(num_orbitals_, num_orbitals_);
+    void CNDO2System::set_f(const arma::mat& new_f_alpha, const arma::mat& new_f_beta) {
+       f_alpha_ = new_f_alpha;
+       f_beta_ = new_f_beta;
+
+       // update molecular orbitals
+       arma::eig_sym(E_alpha_, mos_alpha_, new_f_alpha);
+       arma::eig_sym(E_beta_, mos_beta_, new_f_beta);
+    }
+
+    arma::mat CNDO2System::compute_gamma_matrix() {
+        if (gamma_.n_cols > 0) {
+            return gamma_;
+        }
+
+        gamma_ = arma::zeros(num_orbitals_, num_orbitals_);
 
         std::vector<Atom> atoms{};
         atoms.reserve(num_orbitals_);
@@ -64,16 +73,20 @@ namespace system_lib {
                     atom_i.get_atomic_orbitals().at(0),
                     atom_j.get_atomic_orbitals().at(0)
                 );
-                gamma(iatom, jatom) = gamma_ij;
-                gamma(jatom, iatom) = gamma_ij;
+                gamma_(iatom, jatom) = gamma_ij;
+                gamma_(jatom, iatom) = gamma_ij;
             }
         }
-        return gamma;
+        return gamma_;
     }
 
     /* Compute the gamma matrix indexed by atoms rather than orbitals */
-    arma::mat CNDO2System::compute_reduced_gamma_matrix() const {
-        arma::mat gamma = arma::zeros(atoms_.size(), atoms_.size());
+    arma::mat CNDO2System::compute_reduced_gamma_matrix() {
+        if (gamma_reduced_.n_cols > 0) {
+            return gamma_reduced_;
+        }
+
+        arma::mat gamma_reduced_ = arma::zeros(atoms_.size(), atoms_.size());
 
         for (int iatom = 0; iatom < atoms_.size(); iatom++) {
             const Atom& atom_i = atoms_.at(iatom);
@@ -84,15 +97,19 @@ namespace system_lib {
                     atom_i.get_atomic_orbitals().at(0),
                     atom_j.get_atomic_orbitals().at(0)
                 );
-                gamma(iatom, jatom) = gamma_ij;
-                gamma(jatom, iatom) = gamma_ij;
+                gamma_reduced_(iatom, jatom) = gamma_ij;
+                gamma_reduced_(jatom, iatom) = gamma_ij;
             }
         }
-        return gamma;
+        return gamma_reduced_;
     }
 
-    arma::mat CNDO2System::compute_beta_matrix() const {
-        arma::mat beta = arma::zeros(num_orbitals_, num_orbitals_);
+    arma::mat CNDO2System::compute_beta_matrix() {
+        if(beta_.n_cols > 0) {
+            return beta_;
+        }
+
+        arma::mat beta_ = arma::zeros(num_orbitals_, num_orbitals_);
         std::vector<double> orbital_betas{};
         orbital_betas.reserve(num_orbitals_);
         for (const auto& atom : atoms_) {
@@ -103,15 +120,16 @@ namespace system_lib {
         }
         arma::vec vec_betas = arma::vec(orbital_betas.data(), num_orbitals_);
         vec_betas /= 2;
-        beta.each_col() += vec_betas;
-        beta.each_row() += vec_betas.as_row();
-        return beta;
+        beta_.each_col() += vec_betas;
+        beta_.each_row() += vec_betas.as_row();
+        
+        return beta_;
     }
 
     std::pair<arma::mat,arma::mat> CNDO2System::compute_cndo_f_matrix_internal(
         const arma::mat& p_alpha,
         const arma::mat& p_beta
-    ) const {
+    ) {
 
         // Compute all off-diagonal elements
         arma::mat gamma = compute_gamma_matrix();
@@ -173,25 +191,25 @@ namespace system_lib {
         return {f_alpha, f_beta};
     }
 
-    std::pair<arma::mat,arma::mat> CNDO2System::compute_cndo_f_matrix() const {
+    std::pair<arma::mat,arma::mat> CNDO2System::compute_cndo_f_matrix() {
         return {f_alpha_, f_beta_};
     }
 
-    arma::mat CNDO2System::compute_h_core() const {
+    arma::mat CNDO2System::compute_h_core() {
         return compute_cndo_f_matrix_internal(
             arma::zeros(num_orbitals(), num_orbitals()),
             arma::zeros(num_orbitals(), num_orbitals())
         ).first;
     }
 
-    double CNDO2System::compute_electronic_energy() const {
+    double CNDO2System::compute_electronic_energy() {
         arma::mat h_core = compute_h_core();
 
         return 0.5*(arma::accu(p_alpha_%(h_core + f_alpha_)) +\
                              arma::accu(p_beta_%(h_core+f_beta_)));
     }
 
-    arma::cube CNDO2System::compute_overlap_matrix_gradient() const {
+    arma::cube CNDO2System::compute_overlap_matrix_gradient() {
         std::vector<GaussianContracted> basis_functions{};
         basis_functions.reserve(num_orbitals_);
         for(const auto& atom: atoms_) {
@@ -224,7 +242,7 @@ namespace system_lib {
         return dS;
     }
 
-    arma::cube CNDO2System::compute_gamma_matrix_gradient() const {
+    arma::cube CNDO2System::compute_gamma_matrix_gradient() {
         arma::cube dGamma = arma::zeros(3, atoms_.size(), atoms_.size());
 
         for(size_t iatom = 0; iatom < atoms_.size(); ++iatom) {
@@ -242,7 +260,7 @@ namespace system_lib {
         return dGamma;
     }
 
-    arma::mat CNDO2System::E_electronic_dRA() const {
+    arma::mat CNDO2System::E_electronic_dRA() {
         arma::mat gradient = arma::zeros(3, atoms_.size());
 
         arma::cube dS = compute_overlap_matrix_gradient();
@@ -300,7 +318,7 @@ namespace system_lib {
        return -gradient;
     }
 
-    arma::mat CNDO2System::E_nuclear_dRA() const {
+    arma::mat CNDO2System::E_nuclear_dRA() {
         arma::mat gradient = arma::zeros(3, atoms_.size());
 
         for(size_t iatom = 0; iatom < atoms_.size(); ++iatom) {
