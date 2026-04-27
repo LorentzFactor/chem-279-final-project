@@ -1,6 +1,6 @@
 cmake_minimum_required (VERSION 3.31)
 
-project (homework_5 LANGUAGES CXX)
+project (cndo2_nmr_calculator LANGUAGES CXX)
 
 # Compiler requirements
 set(CMAKE_CXX_STANDARD 20) 
@@ -40,8 +40,6 @@ add_compile_options(-Wa,--gsframe=no) # This is to suppress a useless warning on
 
 link_libraries(common)
 
-# If Needed Make Modifications below this line 
-
 add_library(integration_tools src/integration_tools/integration_tools.cpp)
 add_library(gaussian_lib
     src/gaussian_lib/gaussian_primitive.cpp
@@ -56,16 +54,26 @@ add_library(system_lib
 add_library(solver_lib
     src/solver_lib/cndo2_fixed_point_solver.cpp
 )
+add_library(nmr_lib
+    src/nmr_lib/nmr_lib.cpp
+)
 
 target_include_directories(integration_tools PUBLIC ${PROJECT_SOURCE_DIR}/src)
 target_include_directories(gaussian_lib PUBLIC ${PROJECT_SOURCE_DIR}/src)
 target_include_directories(system_lib PUBLIC ${PROJECT_SOURCE_DIR}/src)
 target_include_directories(solver_lib PUBLIC ${PROJECT_SOURCE_DIR}/src)
-
+target_include_directories(nmr_lib PUBLIC ${PROJECT_SOURCE_DIR}/src)
 add_executable(hw_5_2 src/hw_5_2.cpp)
+add_executable(nmr_calc src/nmr_calculator.cpp)
 
 target_link_libraries(gaussian_lib PRIVATE integration_tools)
 target_link_libraries(system_lib PRIVATE gaussian_lib)
 target_link_libraries(solver_lib PRIVATE system_lib)
+target_link_libraries(nmr_lib PRIVATE system_lib)
+
 target_link_libraries(hw_5_2 PRIVATE system_lib)
 target_link_libraries(hw_5_2 PRIVATE solver_lib)
+
+target_link_libraries(nmr_calc PRIVATE system_lib)
+target_link_libraries(nmr_calc PRIVATE solver_lib)
+target_link_libraries(nmr_calc PRIVATE nmr_lib)

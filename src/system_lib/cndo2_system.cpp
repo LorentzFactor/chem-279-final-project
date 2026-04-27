@@ -401,5 +401,14 @@ namespace system_lib {
         return values;
     }
 
-    
+    double CNDO2System::get_electron_density(size_t atom_idx) const {
+        double density = 0;
+        density +=  arma::accu(arma::square(
+            get_occupied_MOs_alpha().rows(atom_orbital_idxs[atom_idx][0], atom_orbital_idxs[atom_idx][1]-1)
+        ));
+        density +=  arma::accu(arma::square(
+            get_occupied_MOs_beta().rows(atom_orbital_idxs[atom_idx][0], atom_orbital_idxs[atom_idx][1]-1)
+        ));
+        return density;
+    }
 }

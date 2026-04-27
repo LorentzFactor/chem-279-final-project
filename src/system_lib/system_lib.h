@@ -79,6 +79,7 @@ namespace system_lib {
             virtual double compute_electronic_energy() const = 0;
             double compute_nuclear_energy() const;
             double compute_total_energy() const;
+            const Atom& get_atom(size_t atom_idx) const {return atoms_.at(atom_idx);};
     };
 
     struct CNDO2System : public System {
@@ -148,6 +149,10 @@ namespace system_lib {
             arma::cube compute_gamma_matrix_gradient() const;
             arma::mat E_electronic_dRA() const;
             arma::mat E_nuclear_dRA() const;
+
+            // Atom specific results
+            /* Get the electron density surrounding a specific atom */
+            double get_electron_density(size_t atom_idx) const;
     };
 
     double distance(const Atom& a1, const Atom& a2);
