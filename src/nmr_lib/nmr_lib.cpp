@@ -76,6 +76,9 @@ namespace nmr_lib {
         
         double sigma_p = 0;
         for(size_t jatom = 0; jatom < system.num_atoms(); ++jatom) {
+            // cb - Open question - should this skip the atom itself? Takaishi's paper doesn't specify.
+            // Raw formula wold include the atom itself...
+            //if (jatom == atom_A_idx) continue;
             if (system.get_atom(jatom).get_atomic_number() < 3) continue;
             double Q_AB = calculate_Q_AB(system, atom_A_idx, jatom, q2p);
             sigma_p += Q_AB;
