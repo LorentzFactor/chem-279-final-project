@@ -49,10 +49,12 @@ int main(int argc, char **argv) {
   fs::path output_file_path = config["output_file_path"];
   int num_alpha_electrons = config["num_alpha_electrons"];
   int num_beta_electrons = config["num_beta_electrons"];
+  double delta_E = config["delta_e"];
 
   fs::path reference_atoms_file_path = reference_config["atoms_file_path"];
   int reference_num_alpha_electrons = reference_config["num_alpha_electrons"];
   int reference_num_beta_electrons = reference_config["num_beta_electrons"];
+  double reference_delta_E = reference_config["delta_e"];
 
   system_lib::CNDO2System main_sys = system_lib::CNDO2System::from_files(atoms_file_path, "./basis", num_alpha_electrons, num_beta_electrons);
   fixed_point::solve_cndo(main_sys);
@@ -64,8 +66,8 @@ int main(int argc, char **argv) {
       if (atom.get_symbol() == "C") {
           ++num_carbons_main;
           double sigma_d = nmr_lib::calculate_sigma_d(main_sys, iatom);
-          double sigma_p = nmr_lib::calculate_sigma_p(main_sys, iatom);
-          double sigma = nmr_lib::calculate_sigma(main_sys, iatom);
+          double sigma_p = nmr_lib::calculate_sigma_p(main_sys, iatom, delta_E);
+          double sigma = nmr_lib::calculate_sigma(main_sys, iatom, delta_E);
           std::cout << std::format("Atom {}: sigma_d = {:.4f}, sigma_p = {:.4f}, sigma = {:.4f}\n", iatom, sigma_d, sigma_p, sigma);
       }
   }
@@ -80,8 +82,8 @@ int main(int argc, char **argv) {
       if (atom.get_symbol() == "C") {
           num_carbons_reference++;
           double sigma_d = nmr_lib::calculate_sigma_d(reference_sys, iatom);
-          double sigma_p = nmr_lib::calculate_sigma_p(reference_sys, iatom);
-          double sigma = nmr_lib::calculate_sigma(reference_sys, iatom);
+          double sigma_p = nmr_lib::calculate_sigma_p(reference_sys, iatom, reference_delta_E);
+          double sigma = nmr_lib::calculate_sigma(reference_sys, iatom, reference_delta_E);
           std::cout << std::format("Reference Atom {}: sigma_d = {:.4f}, sigma_p = {:.4f}, sigma = {:.4f}\n", iatom, sigma_d, sigma_p, sigma);
       }
   }
@@ -92,13 +94,13 @@ int main(int argc, char **argv) {
       const auto& atom_main = main_sys.get_atom(iatom_main);
       if (atom_main.get_symbol() != "C") continue;
 
-      double sigma_main = nmr_lib::calculate_sigma(main_sys, iatom_main);
+      double sigma_main = nmr_lib::calculate_sigma(main_sys, iatom_main, delta_E);
 
       for (size_t iatom_ref = 0, iC_ref = 0; iatom_ref < reference_sys.num_atoms(); iatom_ref++) {
           const auto& atom_ref = reference_sys.get_atom(iatom_ref);
           if (atom_ref.get_symbol() != "C") continue;
 
-          double sigma_ref = nmr_lib::calculate_sigma(reference_sys, iatom_ref);
+          double sigma_ref = nmr_lib::calculate_sigma(reference_sys, iatom_ref, reference_delta_E);
           chemical_shifts(iC_main, iC_ref) = sigma_ref - sigma_main;
           ++iC_ref;
       }

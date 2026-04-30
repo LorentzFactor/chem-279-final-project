@@ -18,9 +18,9 @@ namespace nmr_lib {
 
     // TODO - implement the following
     /* Calculate sigma_p, the paramagnetic shielding constant for atom A */
-    double calculate_sigma_p(const CNDO2System& system, const size_t atom_A_idx);
+    double calculate_sigma_p(const CNDO2System& system, const size_t atom_A_idx, double delta_E=11.30);
     /* Calculate sigma, the total shielding constant for atom A */
-    inline double calculate_sigma(const CNDO2System& system, const size_t atom_A_idx) {
-        return calculate_sigma_d(system, atom_A_idx) + calculate_sigma_p(system, atom_A_idx);
+    inline double calculate_sigma(const CNDO2System& system, const size_t atom_A_idx, double delta_E=11.30) {
+        return calculate_sigma_d(system, atom_A_idx) + calculate_sigma_p(system, atom_A_idx, delta_E);
     };
 }

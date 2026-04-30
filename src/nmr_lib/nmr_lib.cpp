@@ -71,7 +71,7 @@ namespace nmr_lib {
         return Q_AB;
      }
 
-    double calculate_sigma_p(const CNDO2System& system, const size_t atom_A_idx) {
+    double calculate_sigma_p(const CNDO2System& system, const size_t atom_A_idx, double delta_E) {
         double q2p = calculate_q2p(system, atom_A_idx);
         
         double sigma_p = 0;
@@ -84,7 +84,7 @@ namespace nmr_lib {
             sigma_p += Q_AB;
         }
         double r3_2p = 1/(24*BOHR_RADIUS*BOHR_RADIUS*BOHR_RADIUS)*std::pow(3.25 - 0.35 * (q2p-3), 3);
-        double delta_E = calculate_delta_E(system);
+        //double delta_E = calculate_delta_E(system);
 
         // e^2*h_bar^2/(2m^2*c^2 \delta E)
         double prefactor = 1.0736e2; // scaled to ppm by 1e6, assumes distances are in angstroms and delta_E is in eV
