@@ -31,7 +31,7 @@ namespace system_lib {
     }
 
     /* Load a system of atoms from a set of atom position and basis files */
-    std::vector<Atom> System::atoms_from_files_(std::string atoms_filepath, std::string basis_directory) {
+    std::vector<Atom> System::atoms_from_files_(std::string atoms_filepath, std::string basis_directory, DistanceUnits distance_units) {
         std::ifstream atoms_file(atoms_filepath);
         std::string line = "";
 
@@ -113,12 +113,16 @@ namespace system_lib {
                     orbital_templates.emplace(orbital, GaussianTemplate(alphas, weights));
                 }
             }
+            std::array<double, 3> position = {x,y,z};
+            if (distance_units == DistanceUnits::ANGSTROM) {
+                position = {x/0.529177, y/0.529177, z/0.529177};
+            }
             if (elm < 3) { // Hydrogen + Helium
-                atoms.push_back(Atom({x,y,z}, elm, orbital_templates.at("s")));
+                atoms.push_back(Atom(position, elm, orbital_templates.at("s")));
             }
             else { // All other elements (in second row)
                 atoms.push_back(Atom(
-                    {x,y,z},
+                    position,
                     elm,
                     orbital_templates.at("s"),
                     orbital_templates.at("p")

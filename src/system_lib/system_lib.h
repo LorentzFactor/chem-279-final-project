@@ -16,6 +16,13 @@
 using namespace gaussian_lib;
 
 namespace system_lib {
+
+    // Units for distance in input files
+    enum DistanceUnits {
+        BOHR,
+        ANGSTROM
+    };
+
     struct Atom {
         private:
             std::array<double,3> position_; // Position of atom
@@ -74,7 +81,11 @@ namespace system_lib {
             std::vector<Atom> atoms_;
             size_t num_orbitals_;
             std::vector<std::array<size_t, 2>> atom_orbital_idxs;
-            static std::vector<Atom> atoms_from_files_(std::string atoms_filepath, std::string basis_directory);
+            static std::vector<Atom> atoms_from_files_(
+                std::string atoms_filepath,
+                std::string basis_directory,
+                DistanceUnits distance_units=DistanceUnits::BOHR
+            );
         public:
             System(const std::vector<Atom>& atoms);
             arma::mat compute_overlap_matrix() const;
@@ -119,7 +130,11 @@ namespace system_lib {
 
         public:
             CNDO2System(const std::vector<Atom>& atoms, int p, int q);
-            static CNDO2System from_files(std::string atoms_filepath, std::string basis_directory, int p, int q);
+            static CNDO2System from_files(
+                std::string atoms_filepath, std::string basis_directory,
+                int p, int q,
+                DistanceUnits distance_units=DistanceUnits::BOHR
+            );
             
             void set_p(const arma::mat& new_p_alpha, const arma::mat& new_p_beta);
             const arma::mat& get_p_alpha() const {return p_alpha_;};

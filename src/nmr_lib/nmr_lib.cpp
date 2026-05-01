@@ -11,7 +11,7 @@ namespace nmr_lib {
         *  We add 2 for the 2 electrons in the 1s orbital of the (carbon) itself,
         *  which are not included in the density matrix but do contribute to shielding.
         */
-        double q = system.get_electron_density(atom_A_idx) + 2;
+        double q = system.get_electron_density(atom_A_idx);
         // constants for z_star given by Takaishi 1974
         double z_star = 3.25 - 0.35 * (q-4);
         double sigma_d = 4.45*z_star*q;
