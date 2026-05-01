@@ -8,6 +8,14 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
+# Fetch GoogleTest
+include(FetchContent)
+FetchContent_Declare(
+  googletest
+  URL https://github.com/google/googletest/archive/d72f9c8aea6817cdf1ca0ac10887f328de7f3da2.zip
+)
+FetchContent_MakeAvailable(googletest)
+
 # Find JSON Libraries
 find_package(nlohmann_json REQUIRED)
 find_package(HDF5 REQUIRED)
@@ -34,7 +42,7 @@ target_compile_definitions(common INTERFACE
     H5_USE_110_API
 )
 
-target_compile_options(common INTERFACE ${OpenMP_CXX_FLAGS})
+#target_compile_options(common INTERFACE ${OpenMP_CXX_FLAGS})
 add_compile_options(-Wa,--gsframe=no) # This is to suppress a useless warning on x86 machines
 
 
@@ -78,3 +86,21 @@ target_link_libraries(hw_5_2 PRIVATE solver_lib)
 target_link_libraries(nmr_calc PRIVATE system_lib)
 target_link_libraries(nmr_calc PRIVATE solver_lib)
 target_link_libraries(nmr_calc PRIVATE nmr_lib)
+
+enable_testing()
+
+add_executable(
+  nmr_test
+  tests/cpp_tests/nmr_test.cpp
+)
+
+target_link_libraries(
+  nmr_test
+  GTest::gtest_main
+  system_lib
+  solver_lib
+  nmr_lib
+)
+
+include(GoogleTest)
+gtest_discover_tests(nmr_test)
