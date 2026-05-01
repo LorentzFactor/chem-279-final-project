@@ -1,6 +1,7 @@
 {
-    "atoms_file_path" : "atoms/benzene.xyz",
-    "output_file_path" : "student_output/hw_5_2/benzene.hdf5",
-    "num_alpha_electrons" : 15, 
-    "num_beta_electrons" : 15
+    "atoms_file_path": "atoms/benzene.xyz",
+    "output_file_path": "student_output/hw_5_2/benzene.hdf5",
+    "num_alpha_electrons": 15,
+    "num_beta_electrons": 15,
+    "delta_e": 11.30
 }
