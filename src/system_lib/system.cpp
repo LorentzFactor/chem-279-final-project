@@ -55,10 +55,23 @@ namespace system_lib {
         // Iterate through atoms and their positions
         while(std::getline(atoms_file, line)) {
             sstream = std::stringstream(line);
-            short elm = 0;
-            double x,y,z=0;
-            sstream >> elm >> x >> y >> z;
+            std::string atom_repr; // Can be either atomic symbol or number - we will try to parse both
+            short elm; // Atomic number
+            double x,y,z; // Coordinates
+            sstream >> atom_repr >> x >> y >> z;
 
+            // Check if the element is represented by atomic symbol or number
+            if (atom_repr.size() == 0) {
+                std::cerr << "Invalid line in atoms file: " << line << std::endl;
+                throw std::runtime_error("Could not parse atoms file");
+            }
+            if (std::isdigit(atom_repr[0])) {
+                elm = std::stoi(atom_repr);
+            }
+            else {
+                elm = Atom::get_symbol_number(atom_repr);
+            }
+        
             // Convert atomic number to symbol to try to find
             // a matching basis file by name.
             std::string atomic_symbol = Atom::get_number_symbol(elm);

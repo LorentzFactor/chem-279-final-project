@@ -57,6 +57,7 @@ namespace system_lib {
             Atom(std::array<double,3> position, short atomic_number, GaussianTemplate s_basis);
             Atom(std::array<double,3> position, short atomic_number, GaussianTemplate s_basis, GaussianTemplate p_basis);
             static const std::string& get_number_symbol(const short& atomic_number);
+            static const short get_symbol_number(const std::string& atomic_symbol);
             double get_atom_constant(const std::string& const_name) const;
             std::string get_symbol() const {return atomic_symbol_;};
             const std::vector<GaussianContracted>& get_atomic_orbitals() const {return atomic_orbitals_;};

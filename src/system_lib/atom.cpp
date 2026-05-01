@@ -49,6 +49,17 @@ namespace system_lib {
         return symbol_list_[atomic_number-1];
     }
 
+    /* Convert an atomic symbol to its number */
+    const short Atom::get_symbol_number(const std::string& atomic_symbol) {
+        auto it = std::find(symbol_list_.begin(), symbol_list_.end(), atomic_symbol);
+        if (it != symbol_list_.end()) {
+            return std::distance(symbol_list_.begin(), it) + 1;
+        }
+        else {
+            throw std::runtime_error("Atomic symbol not found: " + atomic_symbol);
+        }
+    }
+
     double Atom::get_atom_constant(const std::string& const_name) const {
         if (const_name == "sI+A/2") {
             return sI_plus_A_.at(get_symbol());
