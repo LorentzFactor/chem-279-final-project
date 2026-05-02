@@ -47,6 +47,9 @@ double calculate_sigma_d(const CNDO2System &system, const size_t atom_A_idx);
 /* Calculate sigma_p, the paramagnetic shielding constant for atom A */
 // double calculate_sigma_p(const CNDO2System &system, const size_t atom_A_idx,
 //                          double delta_E = 11.30);
+/* Paramagnetic term with explicit ΔE (eV) */
+double calculate_sigma_p(const CNDO2System &system, const size_t atom_A_idx,
+                         double delta_E);
 double calculate_sigma_p(const CNDO2System &system, const CarbonGraph &graph,
                          const size_t atom_A_idx);
 /* Calculate sigma, the total shielding constant for atom A */
@@ -64,4 +67,5 @@ AlphaBetaGammaCounts count_alpha_beta_gamma(const CarbonGraph &graph,
                                             size_t local_idx);
 
 SMotifCounts count_motifs(const CarbonGraph &graph, size_t local_idx);
+
 } // namespace nmr_lib

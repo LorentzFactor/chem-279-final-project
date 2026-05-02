@@ -1,11 +1,13 @@
 #include "nmr_lib.h"
+#include <array>
 #include <cstddef>
-#include <iostream>
 #include <queue>
 #include <unordered_map>
+#include <string>
 #include <vector>
 
 namespace nmr_lib {
+
 double calculate_sigma_d(const CNDO2System &system, const size_t atom_A_idx) {
   const Atom &atom_A = system.get_atom(atom_A_idx);
   if (atom_A.get_symbol() != "C") {
@@ -87,15 +89,12 @@ double calculate_Q_AB(const CNDO2System &system, const size_t atom_A_idx,
   return Q_AB;
 }
 
-double calculate_sigma_p(const CNDO2System &system, const CarbonGraph &graph,
-                         const size_t atom_A_idx) {
+double calculate_sigma_p(const CNDO2System &system, const size_t atom_A_idx,
+                         double delta_E) {
   double q2p = calculate_q2p(system, atom_A_idx);
 
   double sigma_p = 0;
   for (size_t jatom = 0; jatom < system.num_atoms(); ++jatom) {
-    // cb - Open question - should this skip the atom itself? Takaishi's paper
-    // doesn't specify. Raw formula wold include the atom itself...
-    // if (jatom == atom_A_idx) continue;
     if (system.get_atom(jatom).get_atomic_number() < 3)
       continue;
     double Q_AB = calculate_Q_AB(system, atom_A_idx, jatom, q2p);
@@ -104,24 +103,19 @@ double calculate_sigma_p(const CNDO2System &system, const CarbonGraph &graph,
   double r3_2p = 1 / (24 * BOHR_RADIUS * BOHR_RADIUS * BOHR_RADIUS) *
                  std::pow(3.25 - 0.35 * (q2p - 3), 3);
 
-  double delta_E = calculate_delta_E(graph, atom_A_idx);
-
   // e^2*h_bar^2/(2m^2*c^2 \delta E)
   double prefactor = 1.0736e2; // scaled to ppm by 1e6, assumes distances are in
                                // angstroms and delta_E is in eV
 
   sigma_p *= r3_2p * prefactor / delta_E;
 
-  // debugging stuff
-  //   const size_t local_carbon_idx =
-  //   graph.atom_idx_to_carbon_local.at(atom_A_idx); AlphaBetaGammaCounts
-  //   counts = count_alpha_beta_gamma(graph, local_carbon_idx); int a =
-  //   counts.a; int b = counts.b; int c = counts.c; std::cout << "Carbon " <<
-  //   local_carbon_idx << "-> a=" << a << ", b=" << b
-  //             << ", c=" << c << ", dE=" << delta_E << " sig_p=" << -sigma_p
-  //             << '\n';
-
   return -sigma_p;
+}
+
+double calculate_sigma_p(const CNDO2System &system, const CarbonGraph &graph,
+                         const size_t atom_A_idx) {
+  return calculate_sigma_p(system, atom_A_idx,
+                           calculate_delta_E(graph, atom_A_idx));
 }
 
 double calculate_delta_E(const CarbonGraph &graph, const size_t atom_A_idx) {
