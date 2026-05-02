@@ -15,8 +15,8 @@ namespace system_lib {
         beta_, gamma_, gamma_reduced_ = arma::zeros(0,0);
     }
 
-    CNDO2System CNDO2System::from_files(std::string atoms_filepath, std::string basis_directory, int p, int q) {
-        auto atoms = atoms_from_files_(atoms_filepath, basis_directory);
+    CNDO2System CNDO2System::from_files(std::string atoms_filepath, std::string basis_directory, int p, int q, DistanceUnits distance_units) {
+        auto atoms = atoms_from_files_(atoms_filepath, basis_directory, distance_units);
         return CNDO2System(atoms, p, q);
     }
 

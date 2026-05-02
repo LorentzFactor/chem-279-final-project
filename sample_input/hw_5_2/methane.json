@@ -1,7 +1,7 @@
-{
-    "atoms_file_path": "atoms/methane.xyz",
-    "output_file_path": "student_output/hw_4_1/methane.hdf5",
-    "num_alpha_electrons": 4,
-    "num_beta_electrons": 4,
+{   
+    "atoms_file_path" : "atoms/methane.xyz",
+    "output_file_path" : "student_output/hw_4_1/methane.hdf5",
+    "num_alpha_electrons" : 4,
+    "num_beta_electrons" : 4,
     "delta_e": 11.30
 }
