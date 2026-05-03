@@ -43,8 +43,11 @@ target_compile_definitions(common INTERFACE
 )
 
 #target_compile_options(common INTERFACE ${OpenMP_CXX_FLAGS})
-add_compile_options(-Wa,--gsframe=no) # This is to suppress a useless warning on x86 machines
-
+# Some toolchains' assemblers reject "-Wa,--gsframe=no"; enable only when needed (e.g. course Docker image).
+option(CNDO2_ASM_GSFRAME "Pass -Wa,--gsframe=no to the assembler (quiet warning on some x86 setups)" OFF)
+if(CNDO2_ASM_GSFRAME)
+  add_compile_options(-Wa,--gsframe=no)
+endif()
 
 link_libraries(common)
 
@@ -72,20 +75,20 @@ target_include_directories(gaussian_lib PUBLIC ${PROJECT_SOURCE_DIR}/src)
 target_include_directories(system_lib PUBLIC ${PROJECT_SOURCE_DIR}/src)
 target_include_directories(solver_lib PUBLIC ${PROJECT_SOURCE_DIR}/src)
 target_include_directories(nmr_lib PUBLIC ${PROJECT_SOURCE_DIR}/src)
-add_executable(hw_5_2 src/hw_5_2.cpp)
-add_executable(nmr_calc src/nmr_calculator.cpp)
+add_executable(nmr_13c_calc src/nmr_13C_calculator.cpp)
+add_executable(nmr_1h_scf_check src/nmr_1H_scf_check.cpp)
 
 target_link_libraries(gaussian_lib PRIVATE integration_tools)
 target_link_libraries(system_lib PRIVATE gaussian_lib)
 target_link_libraries(solver_lib PRIVATE system_lib)
 target_link_libraries(nmr_lib PRIVATE system_lib)
 
-target_link_libraries(hw_5_2 PRIVATE system_lib)
-target_link_libraries(hw_5_2 PRIVATE solver_lib)
+target_link_libraries(nmr_13c_calc PRIVATE system_lib)
+target_link_libraries(nmr_13c_calc PRIVATE solver_lib)
+target_link_libraries(nmr_13c_calc PRIVATE nmr_lib)
 
-target_link_libraries(nmr_calc PRIVATE system_lib)
-target_link_libraries(nmr_calc PRIVATE solver_lib)
-target_link_libraries(nmr_calc PRIVATE nmr_lib)
+target_link_libraries(nmr_1h_scf_check PRIVATE system_lib)
+target_link_libraries(nmr_1h_scf_check PRIVATE solver_lib)
 
 enable_testing()
 

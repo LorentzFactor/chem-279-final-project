@@ -175,7 +175,8 @@ namespace system_lib {
                 S(j, i) = S(i, j);
             }
         }
-        return S;
+        S_ = S;
+        return S_;
     }
 
     double System::compute_total_energy() {

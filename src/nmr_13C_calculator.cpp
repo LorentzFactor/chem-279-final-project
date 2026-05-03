@@ -1,7 +1,9 @@
+// 13C NMR shieldings and chemical shifts (CNDO/2 + Takaishi-style carbon graph).
+
 #include <cstdlib>
 #include <filesystem>
-#include <format>
 #include <fstream>
+#include <iomanip>
 #include <iostream>
 #include <stdexcept>
 #include <stdio.h>
@@ -108,9 +110,9 @@ int main(int argc, char **argv) {
       double sigma_d = nmr_lib::calculate_sigma_d(main_sys, iatom);
       double sigma_p = nmr_lib::calculate_sigma_p(main_sys, main_graph, iatom);
       double sigma = nmr_lib::calculate_sigma(main_sys, main_graph, iatom);
-      std::cout << std::format(
-          "Atom {}: sigma_d = {:.4f}, sigma_p = {:.4f}, sigma = {:.4f}\n",
-          iatom, sigma_d, sigma_p, sigma);
+      std::cout << std::fixed << std::setprecision(4) << "Atom " << iatom
+                << ": sigma_d = " << sigma_d << ", sigma_p = " << sigma_p
+                << ", sigma = " << sigma << '\n';
     }
   }
 
@@ -143,9 +145,9 @@ int main(int argc, char **argv) {
       double sigma_p =
           nmr_lib::calculate_sigma_p(reference_sys, ref_graph, iatom);
       double sigma = nmr_lib::calculate_sigma(reference_sys, ref_graph, iatom);
-      std::cout << std::format("Reference Atom {}: sigma_d = {:.4f}, sigma_p = "
-                               "{:.4f}, sigma = {:.4f}\n",
-                               iatom, sigma_d, sigma_p, sigma);
+      std::cout << std::fixed << std::setprecision(4) << "Reference Atom "
+                << iatom << ": sigma_d = " << sigma_d
+                << ", sigma_p = " << sigma_p << ", sigma = " << sigma << '\n';
     }
   }
 
@@ -181,9 +183,9 @@ int main(int argc, char **argv) {
   std::cout << "Chemical Shifts (ppm):\n";
   for (size_t i = 0; i < chemical_shifts.n_rows; i++) {
     for (size_t j = 0; j < chemical_shifts.n_cols; j++) {
-      std::cout << std::format("Main Atom {} vs Reference Atom {}: {:.4f} ", i,
-                               j, chemical_shifts(i, j))
-                << "ppm; \n";
+      std::cout << std::fixed << std::setprecision(4) << "Main Atom " << i
+                << " vs Reference Atom " << j << ": " << chemical_shifts(i, j)
+                << " ppm; \n";
     }
     std::cout << "\n";
   }

@@ -2,11 +2,6 @@
 
 namespace fixed_point {
     int solve_cndo(CNDO2System& sys, int max_iters, double tol) {
-        arma::mat S = sys.compute_overlap_matrix();
-        arma::mat reduced_gamma = sys.compute_reduced_gamma_matrix();
-        arma::mat gamma = sys.compute_gamma_matrix();
-        arma::mat beta = sys.compute_beta_matrix();
-
         int p = sys.get_nalpha();
         int q = sys.get_nbeta();
 
@@ -41,5 +36,33 @@ namespace fixed_point {
         }
 
         throw std::runtime_error("Failed to converge!");
+    }
+
+    int solve_cndo(CNDO2SystemComplex& sys, int max_iters, double tol) {
+        ComplexMat p_alpha =
+            ComplexMat(sys.num_orbitals(), sys.num_orbitals(), arma::fill::zeros);
+        ComplexMat p_beta =
+            ComplexMat(sys.num_orbitals(), sys.num_orbitals(), arma::fill::zeros);
+        sys.set_p(p_alpha, p_beta);
+
+        ComplexMat p_a_old;
+        ComplexMat p_b_old;
+
+        for (size_t i = 0; i < max_iters; ++i) {
+            p_a_old = sys.get_p_alpha();
+            p_b_old = sys.get_p_beta();
+
+            p_alpha = sys.get_occupied_MOs_alpha() * sys.get_occupied_MOs_alpha().t();
+            p_beta = sys.get_occupied_MOs_beta() * sys.get_occupied_MOs_beta().t();
+
+            sys.set_p(p_alpha, p_beta);
+
+            if (arma::approx_equal(p_alpha, p_a_old, "absdiff", tol) &&
+                arma::approx_equal(p_beta, p_b_old, "absdiff", tol)) {
+                return static_cast<int>(i + 1);
+            }
+        }
+
+        throw std::runtime_error("Failed to converge (complex fixed-point)!");
     }
 }

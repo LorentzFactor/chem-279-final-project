@@ -92,14 +92,14 @@ namespace diis {
             arma::vec target_vec_a;
             build_target_vec(target_vec_a, errors_a);
             arma::vec solution_vec_a;
-            arma::solve(solution_vec_a, solution_mat_a, target_vec_a, arma::solve_opts::force_sym);
+            arma::solve(solution_vec_a, solution_mat_a, target_vec_a);
 
             arma::mat solution_mat_b;
             build_solutions_mat(solution_mat_b, errors_b);
             arma::vec target_vec_b;
             build_target_vec(target_vec_b, errors_b);
             arma::vec solution_vec_b;
-            arma::solve(solution_vec_b, solution_mat_b, target_vec_b, arma::solve_opts::force_sym);
+            arma::solve(solution_vec_b, solution_mat_b, target_vec_b);
 
             arma::mat new_f_a;
             arma::mat new_f_b;
