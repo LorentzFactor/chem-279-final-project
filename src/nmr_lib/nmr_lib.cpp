@@ -4,6 +4,7 @@
 #include <queue>
 #include <unordered_map>
 #include <vector>
+#include <algorithm>
 
 namespace nmr_lib {
 double calculate_sigma_d(const CNDO2System &system, const size_t atom_A_idx) {
@@ -289,6 +290,35 @@ SMotifCounts count_motifs(const CarbonGraph &graph, size_t local_idx) {
     }
   }
   return m;
+}
+
+std::vector<double> get_nmr_peaks(const CNDO2System &system) {
+  CarbonGraph graph = build_carbon_graph(system);
+  return get_nmr_peaks(system, graph);
+}
+
+std::vector<double> get_nmr_peaks(
+    const CNDO2System &system, const CarbonGraph &graph
+) {
+    std::vector<double> atom_sigmas;
+    atom_sigmas.reserve(graph.carbon_local_to_atom_idx.size());
+    for (size_t i = 0; i < system.num_atoms(); i++) {
+        if (system.get_atom(i).get_symbol() == "C") {
+            double sigma = calculate_sigma(system, graph, i);
+            atom_sigmas.push_back(sigma);
+        }
+    }
+
+    std::sort(atom_sigmas.begin(), atom_sigmas.end(), std::greater<double>());    
+    std::vector<double> chem_shifts;
+
+    for(auto it = atom_sigmas.begin(); it != atom_sigmas.end(); ++it) {
+        double chem_shift =  *it + 248.104;
+        if (chem_shifts.size() > 0 && std::abs(chem_shifts.back() - chem_shift) < 0.1) 
+            continue;
+        chem_shifts.push_back(chem_shift);
+    }
+    return chem_shifts;
 }
 
 } // namespace nmr_lib

@@ -57,6 +57,9 @@ inline double calculate_sigma(const CNDO2System &system,
          calculate_sigma_p(system, graph, atom_A_idx);
 };
 
+std::vector<double> get_nmr_peaks(const CNDO2System &system, const CarbonGraph &graph);
+std::vector<double> get_nmr_peaks(const CNDO2System &system);
+
 CarbonGraph build_carbon_graph(const CNDO2System &system,
                                double cc_cutoff_bohr = 3.2);
 

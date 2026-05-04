@@ -1,0 +1,12 @@
+{
+    "methane_reference_file_path": "sample_input/hw_5_2/methane.json",
+    "test_molecules": [
+        {"name": "ethane", "path": "sample_input/hw_5_2/ethane.json", "chem_shifts": [119.94]},
+        {"name": "propane", "path": "sample_input/hw_5_2/propane.json", "chem_shifts": [112.18, 111.69]},
+        {"name": "n_butane", "path": "sample_input/hw_5_2/n_butane.json", "chem_shifts": [114.24, 103.76]},
+        {"name": "n_pentane", "path": "sample_input/hw_5_2/n_pentane.json", "chem_shifts":  [114.08, 105.70, 95.29]},
+        {"name": "n_hexane", "path": "sample_input/hw_5_2/n_hexane.json", "chem_shifts": [114.22, 105.86, 97.71]},
+        {"name": "isobutane", "path": "sample_input/hw_5_2/isobutane.json", "chem_shifts": [103.84, 105.74]},
+        {"name": "2,3-dimethylbutane", "path": "sample_input/hw_5_2/isobutane.json", "chem_shifts": [118.38, 99.62, 98.17, 92.09]}
+    ]
+}

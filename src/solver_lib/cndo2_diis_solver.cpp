@@ -56,7 +56,9 @@ namespace diis {
 
     int solve_cndo(CNDO2System& sys, int max_iters, double tol) {
         arma::mat p_alpha = arma::mat(sys.num_orbitals(), sys.num_orbitals(), arma::fill::randu);
+        p_alpha = (p_alpha + p_alpha.t())/2;
         arma::mat p_beta = arma::mat(sys.num_orbitals(), sys.num_orbitals(), arma::fill::randu);
+        p_beta = (p_beta + p_beta.t())/2;
         sys.set_p(p_alpha, p_beta);
 
         size_t error_lengths = 10; //sys.num_orbitals();
@@ -69,8 +71,8 @@ namespace diis {
             arma::mat error_a_prev = p_alpha * sys.get_f_alpha() - sys.get_f_alpha() * p_alpha;
             arma::mat error_b_prev = p_beta * sys.get_f_beta() - sys.get_f_beta() * p_beta;
 
-            std::cout << "e_a: " << arma::norm(error_a_prev) << "\n"
-                      << "e_b: " << arma::norm(error_b_prev) << std::endl;
+            //std::cout << "e_a: " << arma::norm(error_a_prev) << "\n"
+            //          << "e_b: " << arma::norm(error_b_prev) << std::endl;
 
             arma::mat p_a_old = p_alpha;
             arma::mat p_b_old = p_beta;
@@ -87,25 +89,27 @@ namespace diis {
             f_alphas.push_back(sys.get_f_alpha());
             f_betas.push_back(sys.get_f_beta());
 
-            arma::mat solution_mat_a;
-            build_solutions_mat(solution_mat_a, errors_a);
-            arma::vec target_vec_a;
-            build_target_vec(target_vec_a, errors_a);
-            arma::vec solution_vec_a;
-            arma::solve(solution_vec_a, solution_mat_a, target_vec_a, arma::solve_opts::force_sym);
+            if(errors_a.size() == error_lengths) {
+                arma::mat solution_mat_a;
+                build_solutions_mat(solution_mat_a, errors_a);
+                arma::vec target_vec_a;
+                build_target_vec(target_vec_a, errors_a);
+                arma::vec solution_vec_a;
+                arma::solve(solution_vec_a, solution_mat_a, target_vec_a, arma::solve_opts::force_sym);
 
-            arma::mat solution_mat_b;
-            build_solutions_mat(solution_mat_b, errors_b);
-            arma::vec target_vec_b;
-            build_target_vec(target_vec_b, errors_b);
-            arma::vec solution_vec_b;
-            arma::solve(solution_vec_b, solution_mat_b, target_vec_b, arma::solve_opts::force_sym);
+                arma::mat solution_mat_b;
+                build_solutions_mat(solution_mat_b, errors_b);
+                arma::vec target_vec_b;
+                build_target_vec(target_vec_b, errors_b);
+                arma::vec solution_vec_b;
+                arma::solve(solution_vec_b, solution_mat_b, target_vec_b, arma::solve_opts::force_sym);
 
-            arma::mat new_f_a;
-            arma::mat new_f_b;
-            extrapolate_f(new_f_a, solution_vec_a, f_alphas);
-            extrapolate_f(new_f_b, solution_vec_b, f_betas);
-            sys.set_f(new_f_a, new_f_b);
+                arma::mat new_f_a;
+                arma::mat new_f_b;
+                extrapolate_f(new_f_a, solution_vec_a, f_alphas);
+                extrapolate_f(new_f_b, solution_vec_b, f_betas);
+                sys.set_f(new_f_a, new_f_b);
+            }
 
             p_alpha = sys.get_occupied_MOs_alpha() * sys.get_occupied_MOs_alpha().t();
             p_beta = sys.get_occupied_MOs_beta() * sys.get_occupied_MOs_beta().t();
