@@ -8,7 +8,7 @@
 - [ ] Add **pure** finite-difference helpers (e.g. central $(\mathbf{P}_+ - \mathbf{P}_-)/(2\varepsilon)$) — ideally in `nmr_lib` or next to the 1H calculator first.
 - [ ] Add **orchestration**: three converged `CNDO2SystemComplex` SCFs per axis ($-\varepsilon, 0, +\varepsilon$) with `set_magnetic_field(k, lambda)` + `fixed_point::solve_cndo`, then build $\partial \mathbf{P}/\partial B_k$ from $\mathbf{P}_\alpha+\mathbf{P}_\beta$ (or spin-resolved if required).
 - [ ] Implement **$\sigma_{p,\mathrm{iso}}^A$** via
-  $$\sigma_{p,\mathrm{iso}}^A=\frac{1}{3}\sum_{k\in\{x,y,z\}}\mathrm{Tr}\!\left[\frac{\partial\mathbf{P}}{\partial B_k}\mathbf{H}^{(1,1)}_{A,k}\right]$$
+  $$\sigma_{p,\mathrm{iso}}^A=\frac{1}{3}\sum_{k\in\{x,y,z\}}\operatorname{Tr}\left[\frac{\partial\mathbf{P}}{\partial B_k}\mathbf{H}^{(1,1)}_{A,k}\right]$$
   using `compute_shielding_operator_matrix(k, A)` as $\mathbf{H}^{(1,1)}_{A,k}$ (plus any global prefactor / ppm scaling from your source). *Pople’s closed form for the shielding tensor and its isotropic average is Eqs. (5.9)–(5.10); the underlying second-order energy identification uses Eq. (5.4) and the perturbation elements (5.5)–(5.8) substituted into Eq. (2.20).*
 - [ ] Wire **`nmr_1H_calculator`**: replace placeholder δ table with $\sigma_{\mathrm{ref}}-\sigma_{\mathrm{sample}}$ once $\sigma(H)$ exists; align gauge with the perturbed SCF.
 
@@ -21,7 +21,7 @@ The one-electron Hamiltonian in Pople’s setup is the minimal-coupling form **E
 The complex electronic Hamiltonian/Fock build adds a **minimal-coupling-style** imaginary perturbation proportional to the **angular momentum** operator along the applied field direction $k\in\{x,y,z\}$ (same physical content as the first-order magnetic piece in **Eq. (2.17)**, where $(\mathbf{A}-\mathbf{A}_\mu)\cdot\mathbf{p}$ is proportional to orbital angular momentum about nucleus $\mu$ for a uniform field):
 
 $$
-\mathbf{F} \;=\; \mathbf{F}^{(0)} \;+\; i\,\lambda\,\mathbf{L}_k
+\mathbf{F} = \mathbf{F}^{(0)} + i \lambda \mathbf{L}_k
 $$
 
 ($\lambda$ small; same form for $\alpha$ and $\beta$ blocks in the current code.) SCF uses complex density matrices $\mathbf{P}_\alpha,\mathbf{P}_\beta$ and diagonalizes $\mathbf{F}$ each iteration.
@@ -43,10 +43,10 @@ Section V develops NMR shifts using the **full** vector potential **Eq. (2.2)**;
 For target nucleus **$A$** (proton index) and field component **$k$**, the AO matrix is **block-sparse**: only **intra-center** blocks on neighbor atoms $B\neq A$, weighted by $|R_{AB}|^{-3}$:
 
 $$
-\bigl(\mathbf{H}^{(1,1)}_{A,k}\bigr)_{\mu\in B,\,\nu\in B}
-\;=\;
+\left(\mathbf{H}^{(1,1)}_{A,k}\right)_{\mu \in B, \nu \in B}
+=
 \frac{1}{|R_{AB}|^{3}}
-\,\bigl(\mathbf{L}_k^{(B)}\bigr)_{\mu\nu}
+\left(\mathbf{L}_k^{(B)}\right)_{\mu \nu}
 $$
 
 where $\mathbf{L}_k^{(B)}$ denotes the **full** $\mathbf{L}_k$ matrix computed with **gauge origin at $\mathbf{R}_B$** (second argument to `compute_angular_momentum_matrix`), then restricted to the AO span of atom $B$. The block for $B=A$ is omitted (on-site piece treated as zero in this approximation). Off-diagonal blocks between different atoms are zero.
@@ -63,10 +63,10 @@ The **isotropic paramagnetic** term used as the design target:
 
 $$
 \sigma_{p,\mathrm{iso}}^{A}
-\;=\;
+=
 \frac{1}{3}\sum_{k\in\{x,y,z\}}
-\mathrm{Tr}\!\left(
-\frac{\partial \mathbf{P}}{\partial B_k}\,
+\operatorname{Tr}\left(
+\frac{\partial \mathbf{P}}{\partial B_k}
 \mathbf{H}^{(1,1)}_{A,k}
 \right)
 $$
