@@ -257,8 +257,76 @@ ComplexMat CNDO2SystemComplex::get_occupied_MOs_beta() const {
   return ComplexMat(num_orbitals_, num_orbitals_, arma::fill::zeros);
 }
 
-RealMat CNDO2SystemComplex::get_ang_mom_matrix(int direction) const {
-  return arma::zeros(num_orbitals_, num_orbitals_);
+// RealMat CNDO2SystemComplex::get_ang_mom_matrix(int direction) const {
+//   return arma::zeros(num_orbitals_, num_orbitals_);
+// }
+
+double CNDO2SystemComplex::calc_angular_momentum_term(
+    const gaussian_lib::GaussianContracted &u,
+    const gaussian_lib::GaussianContracted &v,
+    const std::array<double, 3> &gauge_origin, int coord_dir, int deriv_dir) {
+  double total_integral = 0.0;
+  // Take derivative in specific direction
+  auto deriv_components = v.get_gaussian_derivative(deriv_dir);
+
+  // Loop through the returned derivatives
+  for (const auto &deriv : deriv_components) {
+    // Multiply derivative by coords
+    auto coord_components =
+        deriv.multiply_by_coords(coord_dir, gauge_origin[coord_dir]);
+
+    // Get combined prefactors, multiply by overlap, add to total integral
+    for (const auto &final_deriv : coord_components) {
+      double combined_prefactor = deriv.prefactor * final_deriv.prefactor;
+      double overlap = integrate_product(u, final_deriv.gaussian);
+      total_integral += combined_prefactor * overlap;
+    }
+  }
+  return total_integral;
+}
+
+RealMat CNDO2SystemComplex::compute_angular_momentum_matrix(
+    int direction, const std::array<double, 3> &gauge_origin) const {
+  RealMat M;
+  M.zeros(num_orbitals(), num_orbitals());
+
+  // Figure out the axes for cross-product based on direction
+  // Example for x you need y coord and z deriv
+  int coord1 = (direction + 1) % 3;
+  int deriv1 = (direction + 2) % 3;
+
+  // flipped for second term
+  int coord2 = deriv1;
+  int deriv2 = coord1;
+
+  // Flatten overlap list so that we can build the matrix
+  std::vector<gaussian_lib::GaussianContracted> basis_functions;
+  for (const auto &atom : atoms_) {
+    for (const auto &orbital : atom.get_atomic_orbitals()) {
+      basis_functions.push_back(orbital);
+    }
+  }
+
+  // Iterate through all the AOs and fill out ang momentum matrix
+  for (size_t i = 0; i < basis_functions.size(); ++i) {
+    for (size_t j = 0; j < basis_functions.size(); ++j) {
+
+      const auto &u = basis_functions[i];
+      const auto &v = basis_functions[j];
+
+      // Positive term: +(r1 * d1)
+      double term_positive =
+          calc_angular_momentum_term(u, v, guage_origin, coord1, deriv1);
+
+      // Negative term: -(r1 * d1)
+      double term_negative =
+          calc_angular_momentum_term(u, v, guage_origin, coord2, deriv2);
+
+      M(i, j) = term_positive - term_negative;
+    }
+  }
+
+  return M;
 }
 
 } // namespace system_lib

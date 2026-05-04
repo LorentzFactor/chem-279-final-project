@@ -1,3 +1,4 @@
+#include <array>
 #include <complex>
 #include <stdexcept>
 #include <type_traits>
@@ -25,8 +26,14 @@ std::pair<MatT, MatT> build_cndo2_fock(SystemT &sys, const MatT &p_alpha,
 
   // Inject perturbation if doing proton NMR (complex system)
   if constexpr (std::is_same_v<MatT, ComplexMat>) {
-    // Get the angular momentum for current direction
-    RealMat L_k = sys.get_ang_mom_matrix(sys.get_field_dir());
+    // Get the gauge origin
+    const std::array<double, 3> gauge_origin =
+        molecule_center_of_mass(sys.atoms());
+
+    // Get the angular momentum matrix for current direction
+    int dir = sys.get_field_dir();
+    double lambda = sys.get_lambda();
+    RealMat L_k = sys.compute_angular_momentum_matrix(dir, gauge_origin);
 
     // Build perturbation term: i * lambda * L_k
     std::complex<double> i_unit(0.0, 1.0);

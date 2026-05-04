@@ -10,6 +10,7 @@
 #include <armadillo>
 #include <array>
 #include <nlohmann/json.hpp>
+#include <stdexcept>
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -186,6 +187,9 @@ public:
 
 double distance(const Atom &a1, const Atom &a2);
 
+// center of mass helper for getting the gauge origin
+std::array<double, 3> molecule_center_of_mass(const std::vector<Atom> &atoms);
+
 struct CNDO2SystemComplex : public System { // Complex (1H NMR)
 private:
   // F matrix + energy states
@@ -257,7 +261,16 @@ public:
   double get_lambda() const { return lambda_; }
 
   // Get ang momentum matrix, implement later!!!
-  RealMat get_ang_mom_matrix(int direction) const;
+  RealMat compute_angular_momentum_matrix(
+      int direction, const std::array<double, 3> &guage_origin) const;
+
+  double calc_angular_momentum_term(const gaussian_lib::GaussianContracted &u,
+                                    const gaussian_lib::GaussianContracted &v,
+                                    const std::array<double, 3> &gauge_origin,
+                                    int coord_dir, int deriv_dir);
+
+  RealMat compute_angular_momentum_matrix(
+      int direction, const std::array<double, 3> &gauge_origin) const;
 };
 
 #include "fock.tpp"
