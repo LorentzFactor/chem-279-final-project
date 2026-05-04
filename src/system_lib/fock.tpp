@@ -24,25 +24,6 @@ std::pair<MatT, MatT> build_cndo2_fock(SystemT &sys, const MatT &p_alpha,
   MatT f_alpha = SxB - p_alpha % G;
   MatT f_beta = SxB - p_beta % G;
 
-  // Inject perturbation if doing proton NMR (complex system)
-  if constexpr (std::is_same_v<MatT, ComplexMat>) {
-    // Get the gauge origin
-    const std::array<double, 3> gauge_origin =
-        molecule_center_of_mass(sys.atoms());
-
-    // Get the angular momentum matrix for current direction
-    int dir = sys.get_field_dir();
-    double lambda = sys.get_lambda();
-    RealMat L_k = sys.compute_angular_momentum_matrix(dir, gauge_origin);
-
-    // Build perturbation term: i * lambda * L_k
-    std::complex<double> i_unit(0.0, 1.0);
-    ComplexMat perturbation = i_unit * sys.get_lambda() * L_k;
-
-    f_alpha += perturbation;
-    f_beta += perturbation;
-  }
-
   MatT p_tot = p_alpha + p_beta;
 
   RealVec p_AA = arma::zeros(sys.num_atoms());
@@ -90,6 +71,19 @@ std::pair<MatT, MatT> build_cndo2_fock(SystemT &sys, const MatT &p_alpha,
       ++iorbital;
     }
     ++iatom;
+  }
+
+  // Magnetic perturbation after CNDO2 diagonal is set (so diagonal Im parts are kept)
+  if constexpr (std::is_same_v<MatT, ComplexMat>) {
+    const std::array<double, 3> gauge_origin =
+        molecule_center_of_mass(sys.atoms());
+    const int dir = sys.get_field_dir();
+    const RealMat L_k =
+        sys.compute_angular_momentum_matrix(dir, gauge_origin);
+    const std::complex<double> i_unit(0.0, 1.0);
+    const ComplexMat perturbation = i_unit * sys.get_lambda() * L_k;
+    f_alpha += perturbation;
+    f_beta += perturbation;
   }
 
   return {f_alpha, f_beta};

@@ -34,7 +34,9 @@ int main(int argc, char **argv) {
               << "JSON fields: atoms_file_path, num_alpha_electrons, "
                  "num_beta_electrons;\n"
               << "optional: distance_unit, basis_dir (default \"./basis\"), "
-                 "lambda_probe (default 1e-8), field_dir 0|1|2 (default 2=z).\n";
+                 "lambda_probe (default 1e-8), field_dir 0|1|2 (default 2=z).\n"
+              << "Example (from repo root): " << argv[0]
+              << " sample_input/methane.json\n";
     return EXIT_FAILURE;
   }
 

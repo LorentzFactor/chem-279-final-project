@@ -264,16 +264,16 @@ ComplexMat CNDO2SystemComplex::get_occupied_MOs_beta() const {
 double CNDO2SystemComplex::calc_angular_momentum_term(
     const gaussian_lib::GaussianContracted &u,
     const gaussian_lib::GaussianContracted &v,
-    const std::array<double, 3> &gauge_origin, int coord_dir, int deriv_dir) {
+    const std::array<double, 3> &gauge_origin, int coord_dir,
+    int deriv_dir) const {
   double total_integral = 0.0;
   // Take derivative in specific direction
-  auto deriv_components = v.get_gaussian_derivative(deriv_dir);
+  auto deriv_components = gaussian_lib::get_gaussian_derivative(v, deriv_dir);
 
   // Loop through the returned derivatives
   for (const auto &deriv : deriv_components) {
-    // Multiply derivative by coords
-    auto coord_components =
-        deriv.multiply_by_coords(coord_dir, gauge_origin[coord_dir]);
+    auto coord_components = gaussian_lib::multiply_by_coords(
+        deriv.gaussian, coord_dir, gauge_origin[coord_dir]);
 
     // Get combined prefactors, multiply by overlap, add to total integral
     for (const auto &final_deriv : coord_components) {
@@ -316,17 +316,44 @@ RealMat CNDO2SystemComplex::compute_angular_momentum_matrix(
 
       // Positive term: +(r1 * d1)
       double term_positive =
-          calc_angular_momentum_term(u, v, guage_origin, coord1, deriv1);
+          calc_angular_momentum_term(u, v, gauge_origin, coord1, deriv1);
 
-      // Negative term: -(r1 * d1)
       double term_negative =
-          calc_angular_momentum_term(u, v, guage_origin, coord2, deriv2);
+          calc_angular_momentum_term(u, v, gauge_origin, coord2, deriv2);
 
       M(i, j) = term_positive - term_negative;
     }
   }
 
   return M;
+}
+
+RealMat CNDO2SystemComplex::compute_shielding_operator_matrix(
+    int direction, size_t target_proton_idx) const {
+  RealMat shield_M = arma::zeros(num_orbitals(), num_orbitals());
+
+  const Atom &proton_A = get_atom(target_proton_idx);
+
+  for (size_t ib = 0; ib < num_atoms(); ++ib) {
+    if (ib == target_proton_idx) {
+      continue;
+    }
+
+    const Atom &atom_B = get_atom(ib);
+    const auto &pos_B = atom_B.get_position();
+
+    const double R_AB = distance(proton_A, atom_B);
+    const double R3_inv = 1.0 / std::pow(R_AB, 3);
+
+    const RealMat M_total = compute_angular_momentum_matrix(direction, pos_B);
+
+    const auto &b_idxs = atom_orbital_idxs[ib];
+    const arma::span b_span(b_idxs[0], b_idxs[1] - 1);
+
+    shield_M(b_span, b_span) = M_total(b_span, b_span) * R3_inv;
+  }
+
+  return shield_M;
 }
 
 } // namespace system_lib

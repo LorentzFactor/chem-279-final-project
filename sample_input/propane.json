@@ -1,6 +1,6 @@
 {
     "atoms_file_path" : "atoms/propane.xyz",
-    "output_file_path" : "student_output/hw_5_2/propane.hdf5",
+    "output_file_path" : "student_output/propane.hdf5",
     "num_alpha_electrons" : 10,
     "num_beta_electrons" : 10,
     "delta_e": 10.98

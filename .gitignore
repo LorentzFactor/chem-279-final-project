@@ -1,5 +1,8 @@
-# Build
+# Build (use ./build only; ignore ad-hoc dirs)
 build/
+build2/
+build_local/
+build_fresh/
 
 # Output
 student_output/

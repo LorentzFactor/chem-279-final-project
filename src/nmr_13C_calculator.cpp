@@ -1,4 +1,5 @@
-// 13C NMR shieldings and chemical shifts (CNDO/2 + Takaishi-style carbon graph).
+// 13C NMR shieldings and chemical shifts (CNDO/2 + Takaishi-style carbon
+// graph).
 
 #include <cstdlib>
 #include <filesystem>
@@ -22,18 +23,23 @@ namespace fs = std::filesystem;
 using json = nlohmann::json;
 
 inline system_lib::DistanceUnits extract_config_units(json config) {
-    if (config.find("distance_unit") != config.end()) {
-      std::cout << "Extracted distance unit from config: " << config["distance_unit"] << std::endl;
-      return config["distance_unit"] == "angstrom" ? system_lib::DistanceUnits::ANGSTROM : system_lib::DistanceUnits::BOHR;
-    }
-    return system_lib::DistanceUnits::BOHR;
+  if (config.find("distance_unit") != config.end()) {
+    std::cout << "Extracted distance unit from config: "
+              << config["distance_unit"] << std::endl;
+    return config["distance_unit"] == "angstrom"
+               ? system_lib::DistanceUnits::ANGSTROM
+               : system_lib::DistanceUnits::BOHR;
+  }
+  return system_lib::DistanceUnits::BOHR;
 }
 
 int main(int argc, char **argv) {
   // check that a config file is supplied
   if (argc != 3) {
     std::cerr << "Usage: " << argv[0] << " path/to/molecule_config.json"
-              << " path/to/reference_config.json" << std::endl;
+              << " path/to/reference_config.json\n"
+              << "Example (from repo root): " << argv[0]
+              << " sample_input/ethane.json sample_input/methane.json\n";
     return EXIT_FAILURE;
   }
 
@@ -68,13 +74,12 @@ int main(int argc, char **argv) {
   int reference_num_alpha_electrons = reference_config["num_alpha_electrons"];
   int reference_num_beta_electrons = reference_config["num_beta_electrons"];
   double reference_delta_E = reference_config["delta_e"];
-  system_lib::DistanceUnits reference_distance_units = extract_config_units(reference_config);
+  system_lib::DistanceUnits reference_distance_units =
+      extract_config_units(reference_config);
 
   system_lib::CNDO2System main_sys = system_lib::CNDO2System::from_files(
-    atoms_file_path, "./basis",
-    num_alpha_electrons, num_beta_electrons,
-    distance_units
-  );
+      atoms_file_path, "./basis", num_alpha_electrons, num_beta_electrons,
+      distance_units);
   fixed_point::solve_cndo(main_sys);
 
   CarbonGraph main_graph = nmr_lib::build_carbon_graph(main_sys);
@@ -117,10 +122,8 @@ int main(int argc, char **argv) {
   }
 
   system_lib::CNDO2System reference_sys = system_lib::CNDO2System::from_files(
-    reference_atoms_file_path, "./basis",
-    reference_num_alpha_electrons, reference_num_beta_electrons,
-    reference_distance_units
-  );
+      reference_atoms_file_path, "./basis", reference_num_alpha_electrons,
+      reference_num_beta_electrons, reference_distance_units);
   diis::solve_cndo(reference_sys);
   CarbonGraph ref_graph = nmr_lib::build_carbon_graph(reference_sys);
 

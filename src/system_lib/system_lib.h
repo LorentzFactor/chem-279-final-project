@@ -38,23 +38,26 @@ private:
   std::array<double, 3> position_; // Position of atom
   short atomic_number_;            // Its atomic number
   std::string atomic_symbol_;      // Atomic symbol
-  inline static const std::array<std::string, 9> symbol_list_{
-      // Ordered list of atomic symbols
-      "H", "He", "Li", "Be", "B", "C", "N", "O", "F"};
+  inline static const std::array<std::string, 14> symbol_list_{
+      "H",  "He", "Li", "Be", "B",  "C",  "N",  "O",  "F",
+      "Ne", "Na", "Mg", "Al", "Si"};
   std::vector<GaussianContracted>
       atomic_orbitals_;                    // A vector of the atom's orbitals
   std::vector<std::string> orbital_names_; // A vector of the same length as
                                            // orbitals with their names
+  /** CNDO/2-style parameters (eV); Si from third-row extension (literature). */
   inline static const std::unordered_map<std::string, double> sI_plus_A_{
-      {"H", 7.176}, {"C", 14.051}, {"N", 19.361}, {"O", 25.390}, {"F", 32.272},
+      {"H", 7.176},  {"C", 14.051}, {"N", 19.361}, {"O", 25.390}, {"F", 32.272},
+      {"Si", 10.06},
   };
   inline static const std::unordered_map<std::string, double> pI_plus_A_{
-      {"C", 5.572}, {"N", 7.275}, {"O", 9.111}, {"F", 11.080}};
+      {"C", 5.572}, {"N", 7.275}, {"O", 9.111}, {"F", 11.080}, {"Si", 5.57},
+  };
   inline static const std::unordered_map<std::string, double> neg_beta_{
-      {"H", -9}, {"C", -21}, {"N", -25}, {"O", -31}, {"F", -39},
+      {"H", -9}, {"C", -21}, {"N", -25}, {"O", -31}, {"F", -39}, {"Si", -8},
   };
   inline static const std::unordered_map<std::string, double> Z_A{
-      {"H", 1}, {"C", 4}, {"N", 5}, {"O", 6}, {"F", 7},
+      {"H", 1}, {"C", 4}, {"N", 5}, {"O", 6}, {"F", 7}, {"Si", 4},
   };
 
 public:
@@ -260,17 +263,18 @@ public:
   int get_field_dir() const { return field_dir_; }
   double get_lambda() const { return lambda_; }
 
-  // Get ang momentum matrix, implement later!!!
-  RealMat compute_angular_momentum_matrix(
-      int direction, const std::array<double, 3> &guage_origin) const;
-
   double calc_angular_momentum_term(const gaussian_lib::GaussianContracted &u,
                                     const gaussian_lib::GaussianContracted &v,
                                     const std::array<double, 3> &gauge_origin,
-                                    int coord_dir, int deriv_dir);
+                                    int coord_dir, int deriv_dir) const;
 
   RealMat compute_angular_momentum_matrix(
       int direction, const std::array<double, 3> &gauge_origin) const;
+
+  /** Point-dipole-style shielding operator H^{(1,1)} in AO basis (Pople); uses L
+   *  matrices and neighbor weights. See compute_angular_momentum_matrix. */
+  RealMat compute_shielding_operator_matrix(int direction,
+                                            size_t target_proton_idx) const;
 };
 
 #include "fock.tpp"

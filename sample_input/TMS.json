@@ -1,0 +1,6 @@
+{
+    "atoms_file_path" : "atoms/TMS.xyz",
+    "output_file_path" : "student_output/TMS.hdf5",
+    "num_alpha_electrons" : 16,
+    "num_beta_electrons" : 16
+}

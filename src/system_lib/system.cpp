@@ -134,12 +134,13 @@ double System::compute_nuclear_energy() const {
   return nuclear_energy * 27.211324570273;
 }
 
-std::array<double, 3>
-system_lib::molecule_center_of_mass(const std::vector<Atoms> &atoms) {
+std::array<double, 3> molecule_center_of_mass(const std::vector<Atom> &atoms) {
   // define map for masses
   static const std::unordered_map<short, double> kMassAmu{
-      {1, 1.008},  {2, 4.002602}, {3, 6.94},   {4, 9.0121831},   {5, 10.81},
-      {6, 12.011}, {7, 14.007},   {8, 15.999}, {9, 18.998403163}};
+      {1, 1.008},        {2, 4.002602}, {3, 6.94},         {4, 9.0121831},
+      {5, 10.81},        {6, 12.011},   {7, 14.007},       {8, 15.999},
+      {9, 18.998403163}, {10, 20.180},  {11, 22.98976928}, {12, 24.305},
+      {13, 26.9815385},  {14, 28.085}};
 
   // weight sum and radius sum
   double wsum = 0.0;
@@ -162,9 +163,9 @@ system_lib::molecule_center_of_mass(const std::vector<Atoms> &atoms) {
     rsum[1] += w * r[1];
     rsum[2] += w * r[2];
   }
-  // Another quick safety check if system is empty for some reason
-  if (wsum < 1e12) {
-    throw std::runtime_error("molecule_center_of_mass: empty");
+  if (wsum <= 0.0) {
+    throw std::runtime_error(
+        "molecule_center_of_mass: empty or zero total mass");
   }
   return {rsum[0] / wsum, rsum[1] / wsum, rsum[2] / wsum};
 }

@@ -143,44 +143,35 @@ arma::vec3 calculate_gamma_dRa(const GaussianContracted &ga,
 }
 
 std::vector<DerivativeGaussian>
-GaussianContracted::get_gaussian_derivative(int direction) const {
-  // Info from this contracted gaussian to generated DerivGaussians
+get_gaussian_derivative(const GaussianContracted &g, int direction) {
   std::vector<double> current_alphas;
-  current_alphas.reserve(this->components_.size());
-  for (const auto &prim : this->components_) {
+  current_alphas.reserve(g.get_components().size());
+  for (const auto &prim : g.get_components()) {
     current_alphas.push_back(prim.exponent);
   }
 
-  // Vector to store DerivativeGaussians
   std::vector<DerivativeGaussian> gauss_derivs;
 
-  // example for deriv with respect to x
-  // d/dx X(l_x) = l_x * X * (l_x - 1) - 2 * alpha * X * (l_x + 1)
-  // First get term one where momentum is reduced by 1
-  if (this->momentum[direction] > 0) {
-    std::array<char, 3> new_momentum = this->momentum;
+  if (g.momentum[direction] > 0) {
+    std::array<char, 3> new_momentum = g.momentum;
     new_momentum[direction] -= 1;
-    GaussianContracted term1(this->center, current_alphas, this->weights_,
+    GaussianContracted term1(g.center, current_alphas, g.get_weights(),
                              new_momentum);
-    // prefactor for term 1 is the original l value
-    double prefactor = static_cast<double>(this->momentum[direction]);
+    double prefactor = static_cast<double>(g.momentum[direction]);
     gauss_derivs.push_back(DerivativeGaussian{term1, prefactor});
   }
 
-  // Next get term two where momentum is inreased by 1
-  // No need to check if momentum is greater than 1 in this case
   std::vector<double> new_weights;
-  new_weights.reserve(this->components_.size());
-  for (size_t iprim = 0; iprim < this->components_.size(); ++iprim) {
-    double weight_factor = -2.0 * this->components_[iprim].exponent;
-    double new_weight = weight_factor * this->weights_[iprim];
-    new_weights.push_back(new_weight);
+  new_weights.reserve(g.get_components().size());
+  for (size_t iprim = 0; iprim < g.get_components().size(); ++iprim) {
+    double weight_factor = -2.0 * g.get_components()[iprim].exponent;
+    new_weights.push_back(weight_factor * g.get_weights()[iprim]);
   }
 
-  double prefactor = 1.0;
-  std::array<char, 3> new_momentum2 = this->momentum;
+  const double prefactor = 1.0;
+  std::array<char, 3> new_momentum2 = g.momentum;
   new_momentum2[direction] += 1;
-  GaussianContracted term2(this->center, current_alphas, new_weights,
+  GaussianContracted term2(g.center, current_alphas, new_weights,
                            new_momentum2);
   gauss_derivs.push_back(DerivativeGaussian{term2, prefactor});
 
@@ -188,37 +179,24 @@ GaussianContracted::get_gaussian_derivative(int direction) const {
 }
 
 std::vector<DerivativeGaussian>
-GaussianContracted::multiply_by_coords(int direction, double origin) const {
+multiply_by_coords(const GaussianContracted &g, int direction, double origin) {
   std::vector<DerivativeGaussian> components;
-  // Extract current alphas first
   std::vector<double> current_alphas;
-  current_alphas.reserve(this->components_.size());
-  for (const auto &prim : this->components_) {
+  current_alphas.reserve(g.get_components().size());
+  for (const auto &prim : g.get_components()) {
     current_alphas.push_back(prim.exponent);
   }
 
-  // To get ang momentum op, multiply deriv by coord relative to gauge origin
-  // Example for operator in Z direction
-  // Lz = -i((x - origin_x) * d/dy - (y - origin_y) * d/dx)
-  // (x - origin_x) = (x - A_x) + (A_x - origin_x)
-
-  // Term 1: (x - A_x) term
-  // Increase angular momentum in direction by 1
-  // Prefactor is 1.0
-  std::array<char, 3> new_momentum = this->momentum;
+  std::array<char, 3> new_momentum = g.momentum;
   new_momentum[direction] += 1;
-  double prefactor1 = 1.0 GaussianContracted term1(
-      this->center, current_alphas, this->weights_, new_momentum);
+  const double prefactor1 = 1.0;
+  GaussianContracted term1(g.center, current_alphas, g.get_weights(),
+                           new_momentum);
   components.push_back(DerivativeGaussian{term1, prefactor1});
 
-  // Term 2: (A_x - origin_x) term
-  // Same orbital but scaled by distance
-  // Prefactor is the distance factor
-  double dist_factor = this->center[direction] - origin;
-
-  // Only save Deriv Gaussian if distance greater than epsilon
-  if (std::abs(dist_factor > 1e-12)) {
-    GaussianContracted term2(*this);
+  const double dist_factor = g.center[direction] - origin;
+  if (std::abs(dist_factor) > 1e-12) {
+    GaussianContracted term2(g);
     components.push_back(DerivativeGaussian{term2, dist_factor});
   }
 

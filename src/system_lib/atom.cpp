@@ -46,7 +46,12 @@ namespace system_lib {
 
     /* Convert an atomic number to its symbol */
     const std::string& Atom::get_number_symbol(const short& atomic_number) {
-        return symbol_list_[atomic_number-1];
+        if (atomic_number < 1 ||
+            atomic_number > static_cast<short>(symbol_list_.size())) {
+            throw std::runtime_error("Atomic number out of supported range: " +
+                                     std::to_string(atomic_number));
+        }
+        return symbol_list_[static_cast<size_t>(atomic_number - 1)];
     }
 
     /* Convert an atomic symbol to its number */

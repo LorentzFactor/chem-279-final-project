@@ -1,6 +1,6 @@
 {   
     "atoms_file_path" : "atoms/CO2.xyz",
-    "output_file_path" : "student_output/hw_4_1/CO2.hdf5",
+    "output_file_path" : "student_output/CO2.hdf5",
     "num_alpha_electrons" : 8,
     "num_beta_electrons" : 8
 }

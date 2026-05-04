@@ -2,7 +2,10 @@
 
 #include "integration_tools/integration_tools.h"
 #include <armadillo>
+#include <array>
 #include <cmath>
+#include <ostream>
+#include <stdexcept>
 #include <iomanip>
 #include <limits>
 #include <math.h>
@@ -10,12 +13,12 @@
 #include <vector>
 
 namespace gaussian_lib {
+
 struct GaussianPrimitive {
   double center;
   double exponent;
   char momentum;
 
-  // Evaluate the Gaussian primitive at a given point x
   double operator()(double x) const;
 };
 
@@ -32,11 +35,9 @@ public:
   NormedGaussianPrimitive3d(const std::array<double, 3> center, double exponent,
                             const std::array<char, 3> momentum);
 
-  // Evaluate the 3D Gaussian primitive at a given position x
   double operator()(std::array<double, 3> x) const;
   const GaussianPrimitive &component(int i) const { return components_[i]; };
 
-  // Efficiently evaluate the 3d primitive over a grid of points
   arma::cube operator()(const arma::vec &x_points, const arma::vec &y_points,
                         const arma::vec &z_points) const;
 };
@@ -63,71 +64,73 @@ public:
   };
   size_t size() const { return components_.size(); };
 
-  // Evaluate the contracted Gaussian at a given position x
   double operator()(std::array<double, 3> x) const;
 
-  // Efficiently evaluate the contracted gaussian over a grid of points
   arma::cube operator()(const arma::vec &x_points, const arma::vec &y_points,
                         const arma::vec &z_points) const;
 
   void recenter(std::array<double, 3> new_position);
+};
 
-  std::vector<DerivativeGaussian> get_gaussian_derivative(int direction) const;
-  std::vector<DerivativeGaussian> multiply_by_coords(int direction,
-                                                     double origin) const;
+/** One term in a derivative or (r−origin) factorization; used for L integrals. */
+struct DerivativeGaussian {
+  GaussianContracted gaussian;
+  double prefactor;
+};
 
-  struct GaussianTemplate {
-    std::vector<double> alphas;
-    std::vector<double> weights;
+std::vector<DerivativeGaussian>
+get_gaussian_derivative(const GaussianContracted &g, int direction);
 
-    GaussianTemplate(std::vector<double> alphas, std::vector<double> weights)
-        : alphas(alphas), weights(weights) {
-      if (alphas.size() != weights.size()) {
-        throw std::runtime_error(
-            "Weights and coefficients must be same length.");
-      }
-    };
+std::vector<DerivativeGaussian>
+multiply_by_coords(const GaussianContracted &g, int direction, double origin);
 
-    GaussianContracted toFunction(std::array<double, 3> center,
-                                  std::array<char, 3> momentum) const {
-      return GaussianContracted(center, this->alphas, this->weights, momentum);
-    };
+struct GaussianTemplate {
+  std::vector<double> alphas;
+  std::vector<double> weights;
+
+  GaussianTemplate(std::vector<double> alphas, std::vector<double> weights)
+      : alphas(alphas), weights(weights) {
+    if (alphas.size() != weights.size()) {
+      throw std::runtime_error(
+          "Weights and coefficients must be same length.");
+    }
   };
 
-  // Holds derivative gaussians for perturbation derivs
-  struct DerivativeGaussian {
-    GaussianContracted orbital;
-    double prefactor;
+  GaussianContracted toFunction(std::array<double, 3> center,
+                                std::array<char, 3> momentum) const {
+    return GaussianContracted(center, this->alphas, this->weights, momentum);
   };
+};
 
-  std::ostream &operator<<(std::ostream &os, const GaussianPrimitive &g);
+std::ostream &operator<<(std::ostream &os, const GaussianPrimitive &g);
 
-  double numerically_integrate_product(const GaussianPrimitive &ga,
-                                       const GaussianPrimitive &gb, double tol);
-  double integrate_product(const GaussianPrimitive &ga,
-                           const GaussianPrimitive &gb);
-  double integrate_product_dxa(const GaussianPrimitive &ga,
-                               const GaussianPrimitive &gb);
+double numerically_integrate_product(const GaussianPrimitive &ga,
+                                     const GaussianPrimitive &gb, double tol);
+double integrate_product(const GaussianPrimitive &ga,
+                         const GaussianPrimitive &gb);
+double integrate_product_dxa(const GaussianPrimitive &ga,
+                             const GaussianPrimitive &gb);
 
-  double integrate_product(const NormedGaussianPrimitive3d &ga,
-                           const NormedGaussianPrimitive3d &gb);
-  std::array<double, 3>
-  integrate_product_dRa(const NormedGaussianPrimitive3d &ga,
-                        const NormedGaussianPrimitive3d &gb);
+double integrate_product(const NormedGaussianPrimitive3d &ga,
+                         const NormedGaussianPrimitive3d &gb);
+std::array<double, 3>
+integrate_product_dRa(const NormedGaussianPrimitive3d &ga,
+                      const NormedGaussianPrimitive3d &gb);
 
-  double integrate_product(const GaussianContracted &ga,
-                           const GaussianContracted &gb);
-  std::array<double, 3> integrate_product_dRa(const GaussianContracted &ga,
-                                              const GaussianContracted &gb);
-
-  double calculate_gamma_base_term(double sigma_A, double sigma_B,
-                                   const std::array<double, 3> &RA,
-                                   const std::array<double, 3> &RB);
-  arma::vec3 calculate_gamma_base_term_dRa(double sigma_A, double sigma_B,
-                                           const std::array<double, 3> &RA,
-                                           const std::array<double, 3> &RB);
-  double calculate_gamma(const GaussianContracted &ga,
+double integrate_product(const GaussianContracted &ga,
                          const GaussianContracted &gb);
-  arma::vec3 calculate_gamma_dRa(const GaussianContracted &ga,
-                                 const GaussianContracted &gb);
-}
+std::array<double, 3> integrate_product_dRa(const GaussianContracted &ga,
+                                            const GaussianContracted &gb);
+
+double calculate_gamma_base_term(double sigma_A, double sigma_B,
+                                 const std::array<double, 3> &RA,
+                                 const std::array<double, 3> &RB);
+arma::vec3 calculate_gamma_base_term_dRa(double sigma_A, double sigma_B,
+                                         const std::array<double, 3> &RA,
+                                         const std::array<double, 3> &RB);
+double calculate_gamma(const GaussianContracted &ga,
+                       const GaussianContracted &gb);
+arma::vec3 calculate_gamma_dRa(const GaussianContracted &ga,
+                               const GaussianContracted &gb);
+
+} // namespace gaussian_lib
