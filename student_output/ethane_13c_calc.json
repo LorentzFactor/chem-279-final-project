@@ -1,0 +1,38 @@
+{
+  "carbons": [
+    {
+      "atom_index": 0,
+      "c_rank": 0,
+      "delta_ppm": 9.590757261542592,
+      "sigma_d": 68.09588552330455,
+      "sigma_p": -194.99115989083953,
+      "sigma_total": -126.89527436753498
+    },
+    {
+      "atom_index": 1,
+      "c_rank": 1,
+      "delta_ppm": 9.590791106030181,
+      "sigma_d": 68.09588555021347,
+      "sigma_p": -194.99119376223604,
+      "sigma_total": -126.89530821202257
+    }
+  ],
+  "groups": [
+    {
+      "atom_indices": [
+        0,
+        1
+      ],
+      "carbon_slot_indices": [
+        0,
+        1
+      ],
+      "delta_avg_ppm": 9.590774183786387,
+      "n_carbons": 2,
+      "peak_index": 1
+    }
+  ],
+  "molecule_label": "ethane",
+  "reference_sigma_avg_ppm": -117.30451710599239,
+  "shift_grouping_tol_ppm": 0.2
+}

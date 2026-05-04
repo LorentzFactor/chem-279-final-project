@@ -2,6 +2,7 @@
 #include <cstddef>
 #include <iostream>
 #include <queue>
+#include <stdexcept>
 #include <unordered_map>
 #include <vector>
 
@@ -42,7 +43,7 @@ double get_system_orbital_idx_by_name(const CNDO2System &system,
 
 double calculate_q2p(const CNDO2System &system, size_t atom_A_idx) {
   const Atom &atom_A = system.get_atom(atom_A_idx);
-  arma::mat P = system.get_p_alpha() + system.get_p_beta();
+  RealMat P = system.get_p_alpha() + system.get_p_beta();
 
   double q2p = 0;
   for (auto &dim : std::array<std::string, 3>{"x", "y", "z"}) {
@@ -59,7 +60,7 @@ double calculate_Q_AB(const CNDO2System &system, const size_t atom_A_idx,
   const Atom &atom_A = system.get_atom(atom_A_idx);
   const Atom &atom_B = system.get_atom(atom_B_idx);
 
-  const arma::mat &P = system.get_p_alpha() + system.get_p_beta();
+  const RealMat &P = system.get_p_alpha() + system.get_p_beta();
 
   double Q_AB = 0.0;
   // First term
@@ -111,15 +112,6 @@ double calculate_sigma_p(const CNDO2System &system, const CarbonGraph &graph,
                                // angstroms and delta_E is in eV
 
   sigma_p *= r3_2p * prefactor / delta_E;
-
-  // debugging stuff
-  //   const size_t local_carbon_idx =
-  //   graph.atom_idx_to_carbon_local.at(atom_A_idx); AlphaBetaGammaCounts
-  //   counts = count_alpha_beta_gamma(graph, local_carbon_idx); int a =
-  //   counts.a; int b = counts.b; int c = counts.c; std::cout << "Carbon " <<
-  //   local_carbon_idx << "-> a=" << a << ", b=" << b
-  //             << ", c=" << c << ", dE=" << delta_E << " sig_p=" << -sigma_p
-  //             << '\n';
 
   return -sigma_p;
 }
@@ -289,6 +281,30 @@ SMotifCounts count_motifs(const CarbonGraph &graph, size_t local_idx) {
     }
   }
   return m;
+}
+
+RealMat
+central_difference_density_derivative_wrt_B(const ComplexMat &density_B_plus,
+                                            const ComplexMat &density_B_minus,
+                                            double epsilon_B) {
+  if (density_B_plus.n_rows != density_B_minus.n_rows ||
+      density_B_plus.n_cols != density_B_minus.n_cols) {
+    throw std::runtime_error(
+        "density_B_plus and density_B_minus dimension mismatch");
+  }
+
+  if (std::abs(epsilon_B) < 1e-12) {
+    throw std::runtime_error("Epsilon must be greater than zero");
+  }
+
+  // Extract the imaginary first order response from density mats
+  RealMat imag_plus = arma::imag(density_B_plus);
+  RealMat imag_minus = arma::imag(density_B_minus);
+
+  // Take central difference
+  RealMat dP_dB = (imag_plus - imag_minus) / (2.0 * epsilon_B);
+
+  return dP_dB;
 }
 
 } // namespace nmr_lib

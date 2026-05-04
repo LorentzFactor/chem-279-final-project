@@ -39,16 +39,16 @@ private:
   short atomic_number_;            // Its atomic number
   std::string atomic_symbol_;      // Atomic symbol
   inline static const std::array<std::string, 14> symbol_list_{
-      "H",  "He", "Li", "Be", "B",  "C",  "N",  "O",  "F",
-      "Ne", "Na", "Mg", "Al", "Si"};
+      "H", "He", "Li", "Be", "B",  "C",  "N",
+      "O", "F",  "Ne", "Na", "Mg", "Al", "Si"};
   std::vector<GaussianContracted>
       atomic_orbitals_;                    // A vector of the atom's orbitals
   std::vector<std::string> orbital_names_; // A vector of the same length as
                                            // orbitals with their names
   /** CNDO/2-style parameters (eV); Si from third-row extension (literature). */
   inline static const std::unordered_map<std::string, double> sI_plus_A_{
-      {"H", 7.176},  {"C", 14.051}, {"N", 19.361}, {"O", 25.390}, {"F", 32.272},
-      {"Si", 10.06},
+      {"H", 7.176},  {"C", 14.051}, {"N", 19.361},
+      {"O", 25.390}, {"F", 32.272}, {"Si", 10.06},
   };
   inline static const std::unordered_map<std::string, double> pI_plus_A_{
       {"C", 5.572}, {"N", 7.275}, {"O", 9.111}, {"F", 11.080}, {"Si", 5.57},
@@ -83,7 +83,7 @@ public:
 struct System {
 private:
   // Lazy-cached AO overlap (recomputed when empty)
-  mutable arma::mat S_;
+  mutable RealMat S_;
 
 protected:
   std::vector<Atom> atoms_;
@@ -95,7 +95,7 @@ protected:
 
 public:
   System(const std::vector<Atom> &atoms);
-  arma::mat compute_overlap_matrix() const;
+  RealMat compute_overlap_matrix() const;
   size_t num_orbitals() const;
   size_t num_atoms() const;
   virtual double compute_electronic_energy() = 0;
@@ -271,10 +271,11 @@ public:
   RealMat compute_angular_momentum_matrix(
       int direction, const std::array<double, 3> &gauge_origin) const;
 
-  /** Point-dipole-style shielding operator H^{(1,1)} in AO basis (Pople); uses L
-   *  matrices and neighbor weights. See compute_angular_momentum_matrix. */
   RealMat compute_shielding_operator_matrix(int direction,
                                             size_t target_proton_idx) const;
+
+  RealMat compute_proton_shielding_tensor(size_t target_proton_idx,
+                                          double epsilon);
 };
 
 #include "fock.tpp"

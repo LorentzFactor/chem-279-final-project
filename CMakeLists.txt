@@ -77,7 +77,7 @@ target_include_directories(solver_lib PUBLIC ${PROJECT_SOURCE_DIR}/src)
 target_include_directories(nmr_lib PUBLIC ${PROJECT_SOURCE_DIR}/src)
 add_executable(nmr_13c_calc src/nmr_13C_calculator.cpp)
 add_executable(nmr_1h_calc src/nmr_1H_calculator.cpp)
-add_executable(nmr_1h_scf_check src/nmr_1H_scf_check.cpp)
+add_executable(nmr_1h_training_export src/nmr_1h_training_export.cpp)
 
 target_link_libraries(gaussian_lib PRIVATE integration_tools)
 target_link_libraries(system_lib PRIVATE gaussian_lib)
@@ -91,8 +91,8 @@ target_link_libraries(nmr_13c_calc PRIVATE nmr_lib)
 target_link_libraries(nmr_1h_calc PRIVATE system_lib)
 target_link_libraries(nmr_1h_calc PRIVATE solver_lib)
 
-target_link_libraries(nmr_1h_scf_check PRIVATE system_lib)
-target_link_libraries(nmr_1h_scf_check PRIVATE solver_lib)
+target_link_libraries(nmr_1h_training_export PRIVATE system_lib)
+target_link_libraries(nmr_1h_training_export PRIVATE solver_lib)
 
 enable_testing()
 

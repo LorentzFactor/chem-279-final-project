@@ -64,4 +64,10 @@ AlphaBetaGammaCounts count_alpha_beta_gamma(const CarbonGraph &graph,
                                             size_t local_idx);
 
 SMotifCounts count_motifs(const CarbonGraph &graph, size_t local_idx);
+
+RealMat
+central_difference_density_derivative_wrt_B(const ComplexMat &density_B_plus,
+                                            const ComplexMat &density_B_minus,
+                                            double epsilon_B);
+
 } // namespace nmr_lib

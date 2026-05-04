@@ -1,19 +1,41 @@
+#include "solver_lib/solver_lib.h"
 #include "system_lib.h"
 
 #include <complex>
 
 using namespace gaussian_lib;
-namespace fs = std::filesystem;
 using json = nlohmann::json;
 
 namespace system_lib {
+namespace {
+
+RealMat
+central_difference_density_derivative_wrt_B(const ComplexMat &density_B_plus,
+                                            const ComplexMat &density_B_minus,
+                                            double epsilon_B) {
+  if (density_B_plus.n_rows != density_B_minus.n_rows ||
+      density_B_plus.n_cols != density_B_minus.n_cols) {
+    throw std::runtime_error(
+        "density_B_plus and density_B_minus dimension mismatch");
+  }
+
+  if (epsilon_B <= 0.0) {
+    throw std::runtime_error("epsilon_B must be greater than zero");
+  }
+
+  const RealMat imag_plus = arma::imag(density_B_plus);
+  const RealMat imag_minus = arma::imag(density_B_minus);
+  return (imag_plus - imag_minus) / (2.0 * epsilon_B);
+}
+
+} // namespace
 
 CNDO2System::CNDO2System(const std::vector<Atom> &atoms, int p, int q)
     : System(atoms) {
   p_ = (double)p;
   q_ = (double)q;
-  set_p(arma::zeros(num_orbitals_, num_orbitals_),
-        arma::zeros(num_orbitals_, num_orbitals_));
+  set_p(RealMat(num_orbitals_, num_orbitals_, arma::fill::zeros),
+        RealMat(num_orbitals_, num_orbitals_, arma::fill::zeros));
   I_.beta_ = arma::zeros(0, 0);
   I_.gamma_ = arma::zeros(0, 0);
   I_.gamma_reduced_ = arma::zeros(0, 0);
@@ -27,8 +49,8 @@ CNDO2System CNDO2System::from_files(std::string atoms_filepath,
   return CNDO2System(atoms, p, q);
 }
 
-void CNDO2System::set_p(const arma::mat &new_p_alpha,
-                        const arma::mat &new_p_beta) {
+void CNDO2System::set_p(const RealMat &new_p_alpha,
+                        const RealMat &new_p_beta) {
   // Ensure density matrices are properly shaped
   if (!(new_p_alpha.n_cols == num_orbitals_) ||
       !(new_p_alpha.n_rows == num_orbitals_) ||
@@ -46,14 +68,16 @@ void CNDO2System::set_p(const arma::mat &new_p_alpha,
   set_f(new_f.first, new_f.second);
 }
 
-void CNDO2System::set_f(const arma::mat &new_f_alpha,
-                        const arma::mat &new_f_beta) {
-  f_alpha_ = new_f_alpha;
-  f_beta_ = new_f_beta;
+void CNDO2System::set_f(const RealMat &new_f_alpha,
+                        const RealMat &new_f_beta) {
+  // Numerical noise (and DIIS extrapolation) can introduce tiny asymmetry;
+  // enforce symmetry before eig_sym.
+  f_alpha_ = 0.5 * (new_f_alpha + new_f_alpha.t());
+  f_beta_ = 0.5 * (new_f_beta + new_f_beta.t());
 
   // update molecular orbitals
-  arma::eig_sym(E_alpha_, mos_alpha_, new_f_alpha);
-  arma::eig_sym(E_beta_, mos_beta_, new_f_beta);
+  arma::eig_sym(E_alpha_, mos_alpha_, f_alpha_);
+  arma::eig_sym(E_beta_, mos_beta_, f_beta_);
 }
 
 RealMat compute_gamma_matrix(RealMat &gamma, System &sys,
@@ -62,7 +86,7 @@ RealMat compute_gamma_matrix(RealMat &gamma, System &sys,
     return gamma;
   }
 
-  gamma = arma::zeros(sys.num_orbitals(), sys.num_orbitals());
+  gamma = RealMat(sys.num_orbitals(), sys.num_orbitals(), arma::fill::zeros);
 
   std::vector<Atom> atoms{};
   atoms.reserve(sys.num_orbitals());
@@ -92,7 +116,8 @@ RealMat compute_reduced_gamma_matrix(RealMat &gamma_reduced, System &sys) {
     return gamma_reduced;
   }
 
-  gamma_reduced = arma::zeros(sys.num_atoms(), sys.num_atoms());
+  gamma_reduced =
+      RealMat(sys.num_atoms(), sys.num_atoms(), arma::fill::zeros);
 
   for (int iatom = 0; iatom < sys.num_atoms(); iatom++) {
     const Atom &atom_i = sys.get_atom(iatom);
@@ -114,7 +139,7 @@ RealMat compute_beta_matrix(RealMat &beta, System &sys,
     return beta;
   }
 
-  beta = arma::zeros(sys.num_orbitals(), sys.num_orbitals());
+  beta = RealMat(sys.num_orbitals(), sys.num_orbitals(), arma::fill::zeros);
   std::vector<double> orbital_betas{};
   orbital_betas.reserve(sys.num_orbitals());
   for (const auto &atom : atoms) {
@@ -137,19 +162,19 @@ CNDO2System::compute_cndo_f_matrix_internal(const RealMat &p_alpha,
   return build_cndo2_fock(*this, p_alpha, p_beta);
 }
 
-std::pair<arma::mat, arma::mat> CNDO2System::compute_cndo_f_matrix() {
+std::pair<RealMat, RealMat> CNDO2System::compute_cndo_f_matrix() {
   return {f_alpha_, f_beta_};
 }
 
-arma::mat CNDO2System::compute_h_core() {
+RealMat CNDO2System::compute_h_core() {
   return CNDO2System::compute_cndo_f_matrix_internal(
-             arma::zeros(num_orbitals(), num_orbitals()),
-             arma::zeros(num_orbitals(), num_orbitals()))
+             RealMat(num_orbitals(), num_orbitals(), arma::fill::zeros),
+             RealMat(num_orbitals(), num_orbitals(), arma::fill::zeros))
       .first;
 }
 
 double CNDO2System::compute_electronic_energy() {
-  arma::mat h_core = compute_h_core();
+  RealMat h_core = compute_h_core();
 
   return 0.5 * (arma::accu(p_alpha_ % (h_core + f_alpha_)) +
                 arma::accu(p_beta_ % (h_core + f_beta_)));
@@ -164,18 +189,18 @@ double CNDO2System::get_electron_density(size_t atom_idx) const {
   return density;
 }
 
-arma::mat CNDO2System::get_occupied_MOs_alpha() const {
+RealMat CNDO2System::get_occupied_MOs_alpha() const {
   if (p_ > 0)
     return mos_alpha_.cols(arma::span(0, p_ - 1));
   else
-    return arma::zeros(num_orbitals_, num_orbitals_);
+    return RealMat(num_orbitals_, num_orbitals_, arma::fill::zeros);
 }
 
-arma::mat CNDO2System::get_occupied_MOs_beta() const {
+RealMat CNDO2System::get_occupied_MOs_beta() const {
   if (q_ > 0)
     return mos_beta_.cols(arma::span(0, q_ - 1));
   else
-    return arma::zeros(num_orbitals_, num_orbitals_);
+    return RealMat(num_orbitals_, num_orbitals_, arma::fill::zeros);
 }
 
 CNDO2SystemComplex::CNDO2SystemComplex(const std::vector<Atom> &atoms, int p,
@@ -216,10 +241,12 @@ void CNDO2SystemComplex::set_p(const ComplexMat &new_p_alpha,
 
 void CNDO2SystemComplex::set_f(const ComplexMat &new_f_alpha,
                                const ComplexMat &new_f_beta) {
-  f_alpha_ = new_f_alpha;
-  f_beta_ = new_f_beta;
-  arma::eig_sym(E_alpha_, mos_alpha_, new_f_alpha);
-  arma::eig_sym(E_beta_, mos_beta_, new_f_beta);
+  // Enforce Hermiticity before eig_sym to avoid warnings on tiny anti-Hermitian
+  // numerical residue.
+  f_alpha_ = 0.5 * (new_f_alpha + new_f_alpha.t());
+  f_beta_ = 0.5 * (new_f_beta + new_f_beta.t());
+  arma::eig_sym(E_alpha_, mos_alpha_, f_alpha_);
+  arma::eig_sym(E_beta_, mos_beta_, f_beta_);
 }
 
 std::pair<ComplexMat, ComplexMat>
@@ -330,7 +357,7 @@ RealMat CNDO2SystemComplex::compute_angular_momentum_matrix(
 
 RealMat CNDO2SystemComplex::compute_shielding_operator_matrix(
     int direction, size_t target_proton_idx) const {
-  RealMat shield_M = arma::zeros(num_orbitals(), num_orbitals());
+  RealMat shield_M(num_orbitals(), num_orbitals(), arma::fill::zeros);
 
   const Atom &proton_A = get_atom(target_proton_idx);
 
@@ -354,6 +381,50 @@ RealMat CNDO2SystemComplex::compute_shielding_operator_matrix(
   }
 
   return shield_M;
+}
+
+RealMat
+CNDO2SystemComplex::compute_proton_shielding_tensor(size_t target_proton_idx,
+                                                    double epsilon) {
+  RealMat sigma_tensor(3, 3, arma::fill::zeros);
+  constexpr int scf_max_iters = 1000;
+  constexpr double scf_tol = 1e-6;
+
+  // loop over magnetic field directions
+  for (int dir = 0; dir < 3; ++dir) {
+    // Positive perturbation
+    set_magnetic_field(dir, epsilon);
+    // reset density matrices so SCF doesn't start from previously perturbed
+    p_alpha_.zeros();
+    p_beta_.zeros();
+    diis::solve_cndo(*this, scf_max_iters, scf_tol);
+    // Get the total density after DIIS
+    ComplexMat p_plus = p_alpha_ + p_beta_;
+
+    // Negative perturbation
+    set_magnetic_field(dir, -epsilon);
+    // reset density matrices so SCF doesn't start from previously perturbed
+    p_alpha_.zeros();
+    p_beta_.zeros();
+    diis::solve_cndo(*this, scf_max_iters, scf_tol);
+    // Get the total density after DIIS
+    ComplexMat p_minus = p_alpha_ + p_beta_;
+
+    // Calculate the dertivative with respect to field
+    RealMat dP_dB =
+        central_difference_density_derivative_wrt_B(p_plus, p_minus, epsilon);
+
+    // Contract with the shielding operator
+    for (int response_dir = 0; response_dir < 3; ++response_dir) {
+      RealMat H11 =
+          compute_shielding_operator_matrix(response_dir, target_proton_idx);
+      sigma_tensor(response_dir, dir) = arma::trace(dP_dB * H11);
+    }
+  }
+  // Clean field state before exit
+  set_magnetic_field(0, 0.0);
+
+  return sigma_tensor;
 }
 
 } // namespace system_lib

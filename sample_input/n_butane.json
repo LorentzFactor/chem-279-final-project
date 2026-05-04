@@ -3,6 +3,10 @@
     "output_file_path" : "student_output/n_butane.hdf5",
     "num_alpha_electrons" :13,
     "num_beta_electrons" : 13,
+    "label": "n-butane",
+    "experimental_13c_shift_ppm": [13.4, 25.0, 25.0, 13.4],
     "delta_e": 11.09,
-    "distance_unit": "angstrom"
+    "distance_unit": "angstrom",
+    "shift_calibration_beta0": -2.260714592157854,
+    "shift_calibration_beta1": 10.110160064035133
 }

@@ -3,6 +3,10 @@
     "output_file_path" : "student_output/isobutane.hdf5",
     "num_alpha_electrons" :13,
     "num_beta_electrons" : 13,
+    "label": "isobutane",
+    "experimental_13c_shift_ppm": [25.2, 22.1, 22.1, 22.1],
     "delta_e": 10.51,
-    "distance_unit": "angstrom"
+    "distance_unit": "angstrom",
+    "shift_calibration_beta0": -2.260714592157854,
+    "shift_calibration_beta1": 10.110160064035133
 }

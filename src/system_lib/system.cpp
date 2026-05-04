@@ -170,7 +170,7 @@ std::array<double, 3> molecule_center_of_mass(const std::vector<Atom> &atoms) {
   return {rsum[0] / wsum, rsum[1] / wsum, rsum[2] / wsum};
 }
 
-arma::mat System::compute_overlap_matrix() const {
+RealMat System::compute_overlap_matrix() const {
 
   if (S_.n_cols > 0) {
     return S_;
@@ -186,7 +186,7 @@ arma::mat System::compute_overlap_matrix() const {
 
   // Initialize overlap matrix - we initialize to ones since we will
   // be performing multiplicative operations on the data
-  arma::mat S = arma::ones(basis_functions.size(), basis_functions.size());
+  RealMat S = arma::ones(basis_functions.size(), basis_functions.size());
 
   // Iterate through each combination of momentums to generate the matrix
   // element-wise

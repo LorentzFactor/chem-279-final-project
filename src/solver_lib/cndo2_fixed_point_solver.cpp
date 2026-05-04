@@ -5,14 +5,16 @@ namespace fixed_point {
         int p = sys.get_nalpha();
         int q = sys.get_nbeta();
 
-        arma::mat p_alpha = arma::mat(sys.num_orbitals(), sys.num_orbitals(), arma::fill::zeros);
-        arma::mat p_beta = arma::mat(sys.num_orbitals(), sys.num_orbitals(), arma::fill::zeros);
-        arma::mat p_tot = p_alpha + p_beta;
+        RealMat p_alpha =
+            RealMat(sys.num_orbitals(), sys.num_orbitals(), arma::fill::zeros);
+        RealMat p_beta =
+            RealMat(sys.num_orbitals(), sys.num_orbitals(), arma::fill::zeros);
+        RealMat p_tot = p_alpha + p_beta;
         sys.set_p(p_alpha, p_beta);
 
-        arma::mat p_a_old;
-        arma::mat p_b_old;
-        arma::mat p_tot_old;
+        RealMat p_a_old;
+        RealMat p_b_old;
+        RealMat p_tot_old;
 
         for(size_t i = 0; i < max_iters; ++i) {
 

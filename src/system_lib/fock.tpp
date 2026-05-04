@@ -73,15 +73,17 @@ std::pair<MatT, MatT> build_cndo2_fock(SystemT &sys, const MatT &p_alpha,
     ++iatom;
   }
 
-  // Magnetic perturbation after CNDO2 diagonal is set (so diagonal Im parts are kept)
+  // Magnetic perturbation after CNDO2 diagonal is set (so diagonal Im parts are
+  // kept)
   if constexpr (std::is_same_v<MatT, ComplexMat>) {
     const std::array<double, 3> gauge_origin =
         molecule_center_of_mass(sys.atoms());
     const int dir = sys.get_field_dir();
-    const RealMat L_k =
-        sys.compute_angular_momentum_matrix(dir, gauge_origin);
+    const RealMat L_k = sys.compute_angular_momentum_matrix(dir, gauge_origin);
     const std::complex<double> i_unit(0.0, 1.0);
-    const ComplexMat perturbation = i_unit * sys.get_lambda() * L_k;
+
+    // dLambda / dBk = 0.5, apply that to so that lambda in terms of Bk
+    const ComplexMat perturbation = 0.5 * i_unit * sys.get_lambda() * L_k;
     f_alpha += perturbation;
     f_beta += perturbation;
   }
