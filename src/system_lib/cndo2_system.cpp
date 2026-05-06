@@ -30,8 +30,8 @@ central_difference_density_derivative_wrt_B(const ComplexMat &density_B_plus,
 
 } // namespace
 
-CNDO2System::CNDO2System(const std::vector<Atom> &atoms, int p, int q)
-    : System(atoms) {
+CNDO2System::CNDO2System(const std::vector<Atom> &atoms, int p, int q, bool use_indo)
+    : System(atoms), use_indo_(use_indo) {
   p_ = (double)p;
   q_ = (double)q;
   set_p(RealMat(num_orbitals_, num_orbitals_, arma::fill::zeros),
@@ -43,10 +43,10 @@ CNDO2System::CNDO2System(const std::vector<Atom> &atoms, int p, int q)
 
 CNDO2System CNDO2System::from_files(std::string atoms_filepath,
                                     std::string basis_directory, int p, int q,
-                                    DistanceUnits distance_units) {
+                                    DistanceUnits distance_units, bool use_indo) {
   auto atoms =
       atoms_from_files_(atoms_filepath, basis_directory, distance_units);
-  return CNDO2System(atoms, p, q);
+  return CNDO2System(atoms, p, q, use_indo);
 }
 
 void CNDO2System::set_p(const RealMat &new_p_alpha,
@@ -156,6 +156,60 @@ RealMat compute_beta_matrix(RealMat &beta, System &sys,
   return beta;
 }
 
+bool same_orbital(const GaussianContracted& u, const GaussianContracted& v) {
+  if(u.shell != v.shell)
+    return false;
+  for(size_t idim = 0; idim < 3; ++idim) {
+    if (u.momentum[idim] != v.momentum[idim])
+      return false;
+  }
+  return true;
+}
+
+double get_integral(const GaussianContracted &u, const GaussianContracted &v,
+                    const GaussianContracted &l, const GaussianContracted &s,
+                    const Atom &atom) {
+
+  double F0 = atom.get_atom_constant("F0");
+
+  int num_s_shells = (u.shell == 0) + (v.shell == 0) + (l.shell == 0) + (s.shell == 0);
+
+  if (num_s_shells == 4) {
+    // ssss
+    return F0; 
+  } else if (num_s_shells == 2) {
+    // Mixed s and p orbitals
+    if (same_orbital(u, v) && same_orbital(l, s)) {
+      // ssxx
+      return F0; 
+    } else if ((same_orbital(u, l) && same_orbital(v, s)) ||
+               (same_orbital(u, s) && same_orbital(v, l))) {
+      // sxsx
+      double G1 = atom.get_atom_constant("G1");
+      return G1 / 3.0; 
+    }
+
+  } else if (num_s_shells == 0) {
+    double F2 = atom.get_atom_constant("F2");
+
+    if (same_orbital(u, v) && same_orbital(l, s)) {
+      if (same_orbital(u, l)) {
+        // xxxx
+        return F0 + (4.0 / 25.0) * F2; 
+      } else {
+        // xxyy
+        return F0 - (2.0 / 25.0) * F2; 
+      }
+    } else if ((same_orbital(u, l) && same_orbital(v, s)) ||
+               (same_orbital(u, s) && same_orbital(v, l))) {
+      // xyxy
+      return (3.0 / 25.0) * F2; 
+    }
+  }
+
+  throw std::runtime_error("Invalid orbital combination under INDO approximation.");
+}
+
 std::pair<RealMat, RealMat>
 CNDO2System::compute_cndo_f_matrix_internal(const RealMat &p_alpha,
                                             const RealMat &p_beta) {
@@ -204,8 +258,8 @@ RealMat CNDO2System::get_occupied_MOs_beta() const {
 }
 
 CNDO2SystemComplex::CNDO2SystemComplex(const std::vector<Atom> &atoms, int p,
-                                       int q)
-    : System(atoms) {
+                                       int q, bool use_indo)
+    : System(atoms), use_indo_(use_indo) {
   p_ = (double)p;
   q_ = (double)q;
   set_p(ComplexMat(num_orbitals_, num_orbitals_, arma::fill::zeros),
@@ -218,10 +272,10 @@ CNDO2SystemComplex::CNDO2SystemComplex(const std::vector<Atom> &atoms, int p,
 CNDO2SystemComplex
 CNDO2SystemComplex::from_files(std::string atoms_filepath,
                                std::string basis_directory, int p, int q,
-                               DistanceUnits distance_units) {
+                               DistanceUnits distance_units, bool use_indo) {
   auto atoms =
       atoms_from_files_(atoms_filepath, basis_directory, distance_units);
-  return CNDO2SystemComplex(atoms, p, q);
+  return CNDO2SystemComplex(atoms, p, q, use_indo);
 }
 
 void CNDO2SystemComplex::set_p(const ComplexMat &new_p_alpha,
@@ -283,10 +337,6 @@ ComplexMat CNDO2SystemComplex::get_occupied_MOs_beta() const {
     return mos_beta_.cols(arma::span(0, q_ - 1));
   return ComplexMat(num_orbitals_, num_orbitals_, arma::fill::zeros);
 }
-
-// RealMat CNDO2SystemComplex::get_ang_mom_matrix(int direction) const {
-//   return arma::zeros(num_orbitals_, num_orbitals_);
-// }
 
 double CNDO2SystemComplex::calc_angular_momentum_term(
     const gaussian_lib::GaussianContracted &u,

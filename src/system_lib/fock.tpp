@@ -35,42 +35,103 @@ std::pair<MatT, MatT> build_cndo2_fock(SystemT &sys, const MatT &p_alpha,
 
   int iorbital = 0;
   int iatom = 0;
-  for (const auto &atom : atoms) {
-    for (const auto &orbital : atom.get_atomic_orbitals()) {
-      double diag_term = 0;
 
-      if (orbital.shell == 0) {
-        diag_term -= atom.get_atom_constant("sI+A/2");
-      } else if (orbital.shell == 1) {
-        diag_term -= atom.get_atom_constant("pI+A/2");
-      } else {
-        throw std::runtime_error("unsupported shell");
+  if (!sys.use_indo()) {
+    for (const auto &atom : atoms) {
+      for (const auto &orbital : atom.get_atomic_orbitals()) {
+        double diag_term = 0;
+        if (orbital.shell == 0) { // s shell
+          diag_term -= atom.get_atom_constant("sI+A/2");
+        } else if (orbital.shell == 1) { // p shell
+          diag_term -= atom.get_atom_constant("pI+A/2");
+        } else {
+          throw std::runtime_error("unsupported shell");
+        }
+        for (size_t jatom = 0; jatom < sys.num_atoms(); ++jatom) {
+          if ((int)jatom == iatom) {
+            continue;
+          }
+
+          const Atom &atom_c = sys.get_atom(jatom);
+          double gamma_AC = reduced_gamma(iatom, jatom);
+          diag_term +=
+              (p_AA.at(jatom) - atom_c.get_atom_constant("Z_A")) * gamma_AC;
+
+        }
+        double diag_term_a =
+            diag_term + ((p_AA.at(iatom) - atom.get_atom_constant("Z_A")) -
+                        (std::real(p_alpha(iorbital, iorbital)) - 0.5)) *
+                            gamma(iorbital, iorbital);
+        double diag_term_b =
+            diag_term + ((p_AA.at(iatom) - atom.get_atom_constant("Z_A")) -
+                        (std::real(p_beta(iorbital, iorbital)) - 0.5)) *
+                            gamma(iorbital, iorbital);
+        f_alpha(iorbital, iorbital) = diag_term_a;
+        f_beta(iorbital, iorbital) = diag_term_b;
+        ++iorbital;
       }
+      ++iatom;
+    }
+  }
+
+  if (sys.use_indo()) {
+    int iorbital = 0;
+    #pragma omp parallel for
+    for (size_t iatom = 0; iatom < sys.num_atoms(); ++iatom) {
+      const Atom &atom = sys.get_atom(iatom);
+      double diagonal_interatomic_sum = 0;
 
       for (size_t jatom = 0; jatom < sys.num_atoms(); ++jatom) {
-        if ((int)jatom == iatom) {
-          continue;
-        }
-        const Atom &atom_c = sys.get_atom(jatom);
-        double gamma_AC = reduced_gamma(iatom, jatom);
-        diag_term +=
-            (p_AA.at(jatom) - atom_c.get_atom_constant("Z_A")) * gamma_AC;
+        if (jatom == iatom)  { continue; }
+        const Atom &atom_j = sys.get_atom(jatom);
+
+        diagonal_interatomic_sum +=
+            (p_AA.at(jatom) - atom_j.get_atom_constant("Z_A")) *
+            reduced_gamma(iatom, jatom);
       }
 
-      double diag_term_a =
-          diag_term + ((p_AA.at(iatom) - atom.get_atom_constant("Z_A")) -
-                       (std::real(p_alpha(iorbital, iorbital)) - 0.5)) *
-                          gamma(iorbital, iorbital);
-      double diag_term_b =
-          diag_term + ((p_AA.at(iatom) - atom.get_atom_constant("Z_A")) -
-                       (std::real(p_beta(iorbital, iorbital)) - 0.5)) *
-                          gamma(iorbital, iorbital);
+      int start_orbital = iorbital;
+      for (size_t j = start_orbital; j < start_orbital + atom.num_orbitals(); ++j) {
+        const GaussianContracted &mu = atom.get_atomic_orbital(j - start_orbital);
+        for (size_t k = start_orbital; k < start_orbital + atom.num_orbitals(); ++k) {
+          f_alpha(j, k) = 0;
+          f_beta(j, k) = 0;
 
-      f_alpha(iorbital, iorbital) = diag_term_a;
-      f_beta(iorbital, iorbital) = diag_term_b;
-      ++iorbital;
+          if (k == j) {
+            // First term fom Eq. 3.9 of INDO paper
+            if (mu.shell == 0) {
+              f_alpha(j, j) += atom.get_atom_constant("sINDO_U_MU_MU");
+              f_beta(j, j) += atom.get_atom_constant("sINDO_U_MU_MU");
+            } else {
+              f_alpha(j, j) += atom.get_atom_constant("pINDO_U_MU_MU");
+              f_beta(j, j) += atom.get_atom_constant("pINDO_U_MU_MU");
+            }
+
+            // double electron integral component from Eq. 3.9 of INDO paper
+            for(size_t l = start_orbital; l < start_orbital + atom.num_orbitals(); ++l) {
+              const GaussianContracted &lam = atom.get_atomic_orbital(l - start_orbital);
+              f_alpha(j, j) += p_tot(l, l) * get_integral(mu, mu, lam, lam, atom)
+                               - p_alpha(l, l) * get_integral(mu, lam, mu, lam, atom);
+              f_beta(j, j) += p_tot(l, l) * get_integral(mu, mu, lam, lam, atom)
+                                - p_beta(l, l) * get_integral(mu, lam, mu, lam, atom);
+            }
+
+            // Interatomic component from Eq. 3.9 of INDO paper
+            f_alpha(j, k) += diagonal_interatomic_sum;
+            f_beta(j, k) += diagonal_interatomic_sum;
+            continue;
+          }
+
+          // Off-diagonal two-electron integral matrix elements from Eq. 3.9 of INDO paper
+          const GaussianContracted &nu = atom.get_atomic_orbital(k - start_orbital);
+          f_alpha(j, k) += (2.0*p_tot(j,k) - p_alpha(j,k)) * get_integral(mu, nu, mu, nu, atom)
+                            - p_alpha(j,k) * get_integral(mu, mu, nu, nu, atom);
+          f_beta(j, k) += (2.0*p_tot(j,k) - p_beta(j,k)) * get_integral(mu, nu, mu, nu, atom)
+                            - p_beta(j,k) * get_integral(mu, mu, nu, nu, atom);
+        }
+        ++iorbital;
+      }
     }
-    ++iatom;
   }
 
   // Magnetic perturbation after CNDO2 diagonal is set (so diagonal Im parts are

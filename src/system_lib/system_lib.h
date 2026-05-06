@@ -59,6 +59,26 @@ private:
   inline static const std::unordered_map<std::string, double> Z_A{
       {"H", 1}, {"C", 4}, {"N", 5}, {"O", 6}, {"F", 7}, {"Si", 4},
   };
+  inline static const std::unordered_map<std::string, double> G1_{
+        {"Li", 2.5038}, {"Be", 3.8286}, {"B", 5.4223},
+        {"C", 7.2847}, {"N", 9.4158}, {"O", 11.8160},
+        {"F", 14.4848},
+    };
+    inline static const std::unordered_map<std::string, double> F2_{
+        {"Li", 1.3569}, {"Be", 2.4252}, {"B", 3.5486},
+        {"C", 4.7272}, {"N", 5.9608}, {"O", 7.2495},
+        {"F", 8.5934},
+    };
+    inline static const std::unordered_map<std::string, double> sINDO_U_MU_MU_{
+          {"H", -13.6000}, {"C", -67.2257}, {"N", -100.5924},
+          {"O", -140.1901}, {"F", -186.0191},
+    };
+    inline static const std::unordered_map<std::string, double> pINDO_U_MU_MU_{
+        {"C", -58.7865}, {"N", -89.6682},
+        {"O", -126.8051}, {"F", -170.1824},
+    };
+
+  double F0;
 
 public:
   Atom(std::array<double, 3> position, short atomic_number,
@@ -71,6 +91,9 @@ public:
   std::string get_symbol() const { return atomic_symbol_; };
   const std::vector<GaussianContracted> &get_atomic_orbitals() const {
     return atomic_orbitals_;
+  };
+  const GaussianContracted &get_atomic_orbital(size_t orbital_idx) const {
+    return atomic_orbitals_.at(orbital_idx);
   };
   int num_orbitals() const { return atomic_orbitals_.size(); };
   const std::vector<std::string> &get_orbital_names() const {
@@ -121,6 +144,9 @@ RealMat compute_gamma_matrix(RealMat &gamma, System &sys,
 RealMat compute_reduced_gamma_matrix(RealMat &gamma_reduced, System &sys);
 RealMat compute_beta_matrix(RealMat &beta, System &sys,
                             const std::vector<Atom> &atoms);
+double get_integral(const GaussianContracted &u, const GaussianContracted &v,
+                    const GaussianContracted &l, const GaussianContracted &s,
+                    const Atom &atom);
 
 // Shared Fock builder used by both real and complex CNDO2 systems.
 template <class MatT, class SystemT>
@@ -143,16 +169,21 @@ private:
   double p_;
   double q_;
 
+  // Indo flag
+  bool use_indo_;
+
 protected:
   std::pair<RealMat, RealMat>
   compute_cndo_f_matrix_internal(const RealMat &p_alpha, const RealMat &p_beta);
 
 public:
-  CNDO2System(const std::vector<Atom> &atoms, int p, int q);
+  CNDO2System(const std::vector<Atom> &atoms, int p, int q, bool use_indo=false);
   static CNDO2System
   from_files(std::string atoms_filepath, std::string basis_directory, int p,
-             int q, DistanceUnits distance_units = DistanceUnits::BOHR);
+             int q, DistanceUnits distance_units = DistanceUnits::BOHR, bool use_indo=false);
 
+  bool use_indo() const { return use_indo_; };
+  
   void set_p(const RealMat &new_p_alpha, const RealMat &new_p_beta);
   const RealMat &get_p_alpha() const { return p_alpha_; };
   const RealMat &get_p_beta() const { return p_beta_; };
@@ -213,16 +244,21 @@ private:
   double lambda_ = 0.0;
   int field_dir_ = 0; // x, y, or z
 
+  // INDO flag
+  bool use_indo_;
+
 protected:
   std::pair<ComplexMat, ComplexMat>
   compute_cndo_f_matrix_internal(const ComplexMat &p_alpha,
                                  const ComplexMat &p_beta);
 
 public:
-  CNDO2SystemComplex(const std::vector<Atom> &atoms, int p, int q);
+  CNDO2SystemComplex(const std::vector<Atom> &atoms, int p, int q, bool use_indo=false);
   static CNDO2SystemComplex
   from_files(std::string atoms_filepath, std::string basis_directory, int p,
-             int q, DistanceUnits distance_units = DistanceUnits::BOHR);
+             int q, DistanceUnits distance_units = DistanceUnits::BOHR, bool use_indo=false);
+
+  bool use_indo() const { return use_indo_; };
 
   void set_p(const ComplexMat &new_p_alpha, const ComplexMat &new_p_beta);
   const ComplexMat &get_p_alpha() const { return p_alpha_; };

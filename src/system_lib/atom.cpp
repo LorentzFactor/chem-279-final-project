@@ -16,6 +16,8 @@ namespace system_lib {
         // Add s orbital at location of the atom
         atomic_orbitals_ = { s_basis.toFunction(position, {0,0,0}) };
         orbital_names_ = { "1s" };
+
+        F0 = calculate_gamma(atomic_orbitals_.at(0), atomic_orbitals_.at(0));
     }
 
     Atom::Atom(std::array<double,3> position, short atomic_number, GaussianTemplate s_basis, GaussianTemplate p_basis)
@@ -42,6 +44,8 @@ namespace system_lib {
             p_label += (idim == 0) ? "x" : (idim == 1) ? "y" : "z";
             orbital_names_.emplace_back(p_label);
         }
+
+        F0 = calculate_gamma(atomic_orbitals_.at(0), atomic_orbitals_.at(0));
     }
 
     /* Convert an atomic number to its symbol */
@@ -77,6 +81,21 @@ namespace system_lib {
         }
         else if (const_name == "Z_A") {
             return Z_A.at(get_symbol());
+        }
+        else if (const_name == "F0") { // i.e. gamma_AA
+            return F0;
+        }
+        else if (const_name == "F2") {
+            return F2_.at(get_symbol());
+        }
+        else if (const_name == "G1") {
+            return G1_.at(get_symbol());
+        }
+        else if (const_name == "sINDO_U_MU_MU") {
+            return sINDO_U_MU_MU_.at(get_symbol());
+        }
+        else if (const_name == "pINDO_U_MU_MU") {
+            return pINDO_U_MU_MU_.at(get_symbol());
         }
         else {
             throw std::runtime_error("Constant name not found");
