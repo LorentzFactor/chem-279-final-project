@@ -124,12 +124,12 @@ static void print_grouped_delta_summary(const std::vector<double> &delta_ppm,
 }
 
 int main(int argc, char **argv) {
-  if (argc != 3) {
+  if (argc != 4) {
     std::cerr
-        << "Usage: " << argv[0] << " path/to/molecule_config.json"
+        << "Usage: " << argv[0] << " [--cndo|--indo] path/to/molecule_config.json"
         << " path/to/reference_config.json\n"
         << "Example (from repo root): " << argv[0]
-        << " sample_input/ethane.json sample_input/TMS.json\n"
+        << " --cndo sample_input/ethane.json sample_input/TMS.json\n"
         << "JSON: atoms_file_path, num_alpha_electrons, num_beta_electrons;\n"
         << "optional: distance_unit, basis_dir (default \"./basis\"), "
            "delta_e (default 11.30, informational), lambda_probe "
@@ -143,7 +143,18 @@ int main(int argc, char **argv) {
     return EXIT_FAILURE;
   }
 
-  fs::path config_file_path(argv[1]);
+  bool use_indo = false;
+  std::string method_flag(argv[1]);
+  if (method_flag == "--cndo") {
+    use_indo = false;
+  } else if (method_flag == "--indo") {
+    use_indo = true;
+  } else {
+    std::cerr << "First argument must be --cndo or --indo.\n";
+    return EXIT_FAILURE;
+  }
+
+  fs::path config_file_path(argv[2]);
   if (!fs::exists(config_file_path)) {
     std::cerr << "Path: " << config_file_path << " does not exist" << std::endl;
     return EXIT_FAILURE;
@@ -151,7 +162,7 @@ int main(int argc, char **argv) {
   std::ifstream config_file(config_file_path);
   json config = json::parse(config_file);
 
-  fs::path reference_config_file_path(argv[2]);
+  fs::path reference_config_file_path(argv[3]);
   if (!fs::exists(reference_config_file_path)) {
     std::cerr << "Path: " << reference_config_file_path << " does not exist"
               << std::endl;
@@ -245,7 +256,7 @@ int main(int argc, char **argv) {
   // --- Main: real CNDO/2 (Mulliken / future σ(H) path, same as 13C stack) ---
   system_lib::CNDO2System main_real = system_lib::CNDO2System::from_files(
       atoms_file_path, basis_dir, num_alpha_electrons, num_beta_electrons,
-      distance_units);
+      distance_units, use_indo);
   diis::solve_cndo(main_real);
 
   std::vector<size_t> main_h_atoms;
@@ -257,21 +268,21 @@ int main(int argc, char **argv) {
   system_lib::CNDO2SystemComplex main_cx0 =
       system_lib::CNDO2SystemComplex::from_files(
           atoms_file_path, basis_dir, num_alpha_electrons, num_beta_electrons,
-          distance_units);
+        distance_units, use_indo);
   main_cx0.set_magnetic_field(field_dir, 0.0);
   diis::solve_cndo(main_cx0);
 
   system_lib::CNDO2SystemComplex main_cx_lam =
       system_lib::CNDO2SystemComplex::from_files(
           atoms_file_path, basis_dir, num_alpha_electrons, num_beta_electrons,
-          distance_units);
+        distance_units, use_indo);
   main_cx_lam.set_magnetic_field(field_dir, lambda_probe);
   diis::solve_cndo(main_cx_lam);
 
   // --- Reference: real (DIIS, same as 13C calculator) ---
   system_lib::CNDO2System reference_real = system_lib::CNDO2System::from_files(
       reference_atoms_file_path, basis_dir, reference_num_alpha_electrons,
-      reference_num_beta_electrons, reference_distance_units);
+      reference_num_beta_electrons, reference_distance_units, use_indo);
   diis::solve_cndo(reference_real);
 
   std::vector<size_t> ref_h_atoms;
@@ -281,14 +292,14 @@ int main(int argc, char **argv) {
   system_lib::CNDO2SystemComplex ref_cx0 =
       system_lib::CNDO2SystemComplex::from_files(
           reference_atoms_file_path, basis_dir, reference_num_alpha_electrons,
-          reference_num_beta_electrons, reference_distance_units);
+        reference_num_beta_electrons, reference_distance_units, use_indo);
   ref_cx0.set_magnetic_field(field_dir, 0.0);
   diis::solve_cndo(ref_cx0);
 
   system_lib::CNDO2SystemComplex ref_cx_lam =
       system_lib::CNDO2SystemComplex::from_files(
           reference_atoms_file_path, basis_dir, reference_num_alpha_electrons,
-          reference_num_beta_electrons, reference_distance_units);
+        reference_num_beta_electrons, reference_distance_units, use_indo);
   ref_cx_lam.set_magnetic_field(field_dir, lambda_probe);
   diis::solve_cndo(ref_cx_lam);
 
