@@ -11,6 +11,7 @@
 #include <math.h>
 #include <numeric>
 #include <vector>
+#include <unordered_map>
 
 namespace gaussian_lib {
 

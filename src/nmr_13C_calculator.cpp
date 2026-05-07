@@ -181,11 +181,12 @@ static void write_results_json(
 }
 
 int main(int argc, char **argv) {
-  if (argc != 3 && argc != 4) {
-    std::cerr << "Usage: " << argv[0] << " path/to/molecule_config.json"
+  if (argc != 4 && argc != 5) {
+    std::cerr << "Usage: " << argv[0]
+              << " [--cndo|--indo] path/to/molecule_config.json"
               << " path/to/reference_config.json [results.json]\n"
               << "Example (from repo root): " << argv[0]
-              << " sample_input/ethane.json sample_input/methane.json\n"
+              << " --cndo sample_input/ethane.json sample_input/methane.json\n"
               << "Optional third argument: write machine-readable summary "
                  "(for scripts/plot_nmr_13c_calc_peaks.py).\n"
               << "JSON: atoms_file_path, num_alpha_electrons, num_beta_electrons;\n"
@@ -203,7 +204,18 @@ int main(int argc, char **argv) {
     return EXIT_FAILURE;
   }
 
-  fs::path config_file_path(argv[1]);
+  bool use_indo = false;
+  std::string method_flag(argv[1]);
+  if (method_flag == "--cndo") {
+    use_indo = false;
+  } else if (method_flag == "--indo") {
+    use_indo = true;
+  } else {
+    std::cerr << "First argument must be --cndo or --indo.\n";
+    return EXIT_FAILURE;
+  }
+
+  fs::path config_file_path(argv[2]);
   if (!fs::exists(config_file_path)) {
     std::cerr << "Path: " << config_file_path << " does not exist" << std::endl;
     return EXIT_FAILURE;
@@ -211,7 +223,7 @@ int main(int argc, char **argv) {
   std::ifstream config_file(config_file_path);
   json config = json::parse(config_file);
 
-  fs::path reference_config_file_path(argv[2]);
+  fs::path reference_config_file_path(argv[3]);
   if (!fs::exists(reference_config_file_path)) {
     std::cerr << "Path: " << reference_config_file_path << " does not exist"
               << std::endl;
@@ -260,7 +272,7 @@ int main(int argc, char **argv) {
 
   system_lib::CNDO2System main_sys = system_lib::CNDO2System::from_files(
       atoms_file_path, basis_dir, num_alpha_electrons, num_beta_electrons,
-      distance_units);
+      distance_units, use_indo);
   diis::solve_cndo(main_sys);
   CarbonGraph main_graph = nmr_lib::build_carbon_graph(main_sys, cc_cutoff_bohr);
 
@@ -269,7 +281,7 @@ int main(int argc, char **argv) {
 
   system_lib::CNDO2System reference_sys = system_lib::CNDO2System::from_files(
       reference_atoms_file_path, basis_dir, reference_num_alpha_electrons,
-      reference_num_beta_electrons, reference_distance_units);
+      reference_num_beta_electrons, reference_distance_units, use_indo);
   diis::solve_cndo(reference_sys);
   CarbonGraph ref_graph =
       nmr_lib::build_carbon_graph(reference_sys, cc_cutoff_bohr);
@@ -340,8 +352,8 @@ int main(int argc, char **argv) {
 
   print_grouped_delta_summary(delta_ppm, main_c_atoms, shift_grouping_tol_ppm);
 
-  if (argc == 4) {
-    const fs::path json_path(argv[3]);
+  if (argc == 5) {
+    const fs::path json_path(argv[4]);
     if (json_path.has_parent_path()) {
       fs::create_directories(json_path.parent_path());
     }

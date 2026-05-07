@@ -1,6 +1,7 @@
 #include "solver_lib/solver_lib.h"
 #include "system_lib.h"
 
+#include <bit>
 #include <complex>
 
 using namespace gaussian_lib;
@@ -8,6 +9,10 @@ using json = nlohmann::json;
 
 namespace system_lib {
 namespace {
+
+inline void hash_combine(size_t &seed, size_t value) {
+  seed ^= value + 0x9e3779b9 + (seed << 6) + (seed >> 2);
+}
 
 RealMat
 central_difference_density_derivative_wrt_B(const ComplexMat &density_B_plus,
@@ -29,6 +34,27 @@ central_difference_density_derivative_wrt_B(const ComplexMat &density_B_plus,
 }
 
 } // namespace
+
+size_t CNDO2SystemComplex::AngularMomentumCacheKeyHash::operator()(
+    const AngularMomentumCacheKey &key) const {
+  size_t seed = 0;
+
+  for (size_t orb = 0; orb < 2; ++orb) {
+    for (size_t dim = 0; dim < 3; ++dim) {
+      hash_combine(seed, std::hash<uint64_t>{}(key.centers_bits[orb][dim]));
+      hash_combine(seed, std::hash<int>{}(key.momenta[orb][dim]));
+    }
+    hash_combine(seed, std::hash<int>{}(key.shells[orb]));
+  }
+
+  for (size_t dim = 0; dim < 3; ++dim) {
+    hash_combine(seed, std::hash<uint64_t>{}(key.gauge_origin_bits[dim]));
+  }
+
+  hash_combine(seed, std::hash<int>{}(key.coord_dir));
+  hash_combine(seed, std::hash<int>{}(key.deriv_dir));
+  return seed;
+}
 
 CNDO2System::CNDO2System(const std::vector<Atom> &atoms, int p, int q, bool use_indo)
     : System(atoms), use_indo_(use_indo) {
@@ -341,8 +367,32 @@ ComplexMat CNDO2SystemComplex::get_occupied_MOs_beta() const {
 double CNDO2SystemComplex::calc_angular_momentum_term(
     const gaussian_lib::GaussianContracted &u,
     const gaussian_lib::GaussianContracted &v,
-    const std::array<double, 3> &gauge_origin, int coord_dir,
-    int deriv_dir) const {
+    const std::array<double, 3> &gauge_origin,
+    int coord_dir, int deriv_dir) const {
+  AngularMomentumCacheKey cache_key{};
+  const std::array<const gaussian_lib::GaussianContracted *, 2> orbitals{&u,
+                                                                          &v};
+  for (size_t orb = 0; orb < orbitals.size(); ++orb) {
+    const auto &gaussian = *orbitals[orb];
+    for (size_t dim = 0; dim < 3; ++dim) {
+      cache_key.centers_bits[orb][dim] =
+          std::bit_cast<uint64_t>(gaussian.center[dim]);
+      cache_key.momenta[orb][dim] = gaussian.momentum[dim];
+    }
+    cache_key.shells[orb] = gaussian.shell;
+  }
+  for (size_t dim = 0; dim < 3; ++dim) {
+    cache_key.gauge_origin_bits[dim] =
+        std::bit_cast<uint64_t>(gauge_origin[dim]);
+  }
+  cache_key.coord_dir = coord_dir;
+  cache_key.deriv_dir = deriv_dir;
+
+  const auto cached = angular_momentum_term_cache_.find(cache_key);
+  if (cached != angular_momentum_term_cache_.end()) {
+    return cached->second;
+  }
+
   double total_integral = 0.0;
   // Take derivative in specific direction
   auto deriv_components = gaussian_lib::get_gaussian_derivative(v, deriv_dir);
@@ -359,6 +409,8 @@ double CNDO2SystemComplex::calc_angular_momentum_term(
       total_integral += combined_prefactor * overlap;
     }
   }
+
+  angular_momentum_term_cache_.emplace(cache_key, total_integral);
   return total_integral;
 }
 
@@ -440,25 +492,28 @@ CNDO2SystemComplex::compute_proton_shielding_tensor(size_t target_proton_idx,
   constexpr int scf_max_iters = 1000;
   constexpr double scf_tol = 1e-6;
 
+  ComplexMat p_alpha_unperturbed = get_p_alpha();
+  ComplexMat p_beta_unperturbed = get_p_beta();
+
   // loop over magnetic field directions
   for (int dir = 0; dir < 3; ++dir) {
     // Positive perturbation
     set_magnetic_field(dir, epsilon);
-    // reset density matrices so SCF doesn't start from previously perturbed
-    p_alpha_.zeros();
-    p_beta_.zeros();
-    diis::solve_cndo(*this, scf_max_iters, scf_tol);
+    diis::solve_cndo(*this, scf_max_iters, scf_tol, true);
     // Get the total density after DIIS
     ComplexMat p_plus = p_alpha_ + p_beta_;
 
+    // Reset for next run
+    set_p(p_alpha_unperturbed, p_beta_unperturbed);
+
     // Negative perturbation
     set_magnetic_field(dir, -epsilon);
-    // reset density matrices so SCF doesn't start from previously perturbed
-    p_alpha_.zeros();
-    p_beta_.zeros();
-    diis::solve_cndo(*this, scf_max_iters, scf_tol);
+    diis::solve_cndo(*this, scf_max_iters, scf_tol, true);
     // Get the total density after DIIS
     ComplexMat p_minus = p_alpha_ + p_beta_;
+
+    // Reset for next run
+    set_p(p_alpha_unperturbed, p_beta_unperturbed);
 
     // Calculate the dertivative with respect to field
     RealMat dP_dB =

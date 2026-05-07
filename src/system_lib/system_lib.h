@@ -9,6 +9,7 @@
 #include "gaussian_lib/gaussian_lib.h"
 #include <armadillo>
 #include <array>
+#include <cstdint>
 #include <nlohmann/json.hpp>
 #include <stdexcept>
 #include <string>
@@ -226,6 +227,21 @@ std::array<double, 3> molecule_center_of_mass(const std::vector<Atom> &atoms);
 
 struct CNDO2SystemComplex : public System { // Complex (1H NMR)
 private:
+  struct AngularMomentumCacheKey {
+    std::array<std::array<uint64_t, 3>, 2> centers_bits;
+    std::array<std::array<char, 3>, 2> momenta;
+    std::array<char, 2> shells;
+    std::array<uint64_t, 3> gauge_origin_bits;
+    int coord_dir;
+    int deriv_dir;
+
+    bool operator==(const AngularMomentumCacheKey &other) const = default;
+  };
+
+  struct AngularMomentumCacheKeyHash {
+    size_t operator()(const AngularMomentumCacheKey &key) const;
+  };
+
   // F matrix + energy states
   // Complex types
   ComplexMat p_alpha_, p_beta_;
@@ -246,6 +262,12 @@ private:
 
   // INDO flag
   bool use_indo_;
+
+  // Memoized one-electron angular momentum terms keyed by AO pair + gauge
+  // origin + Cartesian directions.
+  mutable std::unordered_map<AngularMomentumCacheKey, double,
+                             AngularMomentumCacheKeyHash>
+      angular_momentum_term_cache_;
 
 protected:
   std::pair<ComplexMat, ComplexMat>

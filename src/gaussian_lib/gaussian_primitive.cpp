@@ -44,7 +44,6 @@ namespace {
         for large m or n when it could be avoided.
     */
     int binomial_coefficient(int m, int n) {
-
         // Check for invalid inputs
         if (m < 0 || n < 0 || n > m) {
             throw std::runtime_error("Invalid input for binomial coefficient");

@@ -1,5 +1,5 @@
 // Batch-export ¹H shielding features (σ_para, σ_dia, etc.) for empirical δ fitting.
-// Usage: nmr_1h_training_export path/to/training_list.json
+// Usage: nmr_1h_training_export [--cndo|--indo] path/to/training_list.json
 // JSON schema: see sample_input/nmr_1h_training_export.json
 
 #include <cstdlib>
@@ -74,15 +74,27 @@ static std::string csv_escape(const std::string &s) {
 }
 
 int main(int argc, char **argv) {
-  if (argc != 2) {
+  if (argc != 3) {
     std::cerr
-        << "Usage: " << argv[0] << " path/to/training_list.json\n"
+        << "Usage: " << argv[0]
+        << " [--cndo|--indo] path/to/training_list.json\n"
         << "Writes CSV path from JSON key \"output_csv\" (see "
            "sample_input/nmr_1h_training_export.json).\n";
     return EXIT_FAILURE;
   }
 
-  const fs::path list_path(argv[1]);
+  bool use_indo = false;
+  std::string method_flag(argv[1]);
+  if (method_flag == "--cndo") {
+    use_indo = false;
+  } else if (method_flag == "--indo") {
+    use_indo = true;
+  } else {
+    std::cerr << "First argument must be --cndo or --indo.\n";
+    return EXIT_FAILURE;
+  }
+
+  const fs::path list_path(argv[2]);
   if (!fs::exists(list_path)) {
     std::cerr << "File not found: " << list_path << '\n';
     return EXIT_FAILURE;
@@ -157,7 +169,7 @@ int main(int argc, char **argv) {
               << " (" << atoms_path << ") ..." << std::endl;
 
     system_lib::CNDO2System real_sys = system_lib::CNDO2System::from_files(
-        atoms_path.string(), basis_dir, n_alpha, n_beta, du);
+      atoms_path.string(), basis_dir, n_alpha, n_beta, du, use_indo);
     // Same as nmr_1H_calculator: DIIS for real SCF; plain fixed-point often fails
     // for larger molecules (e.g. n-butane).
     diis::solve_cndo(real_sys);
@@ -167,7 +179,7 @@ int main(int argc, char **argv) {
 
     system_lib::CNDO2SystemComplex cx =
         system_lib::CNDO2SystemComplex::from_files(
-            atoms_path.string(), basis_dir, n_alpha, n_beta, du);
+        atoms_path.string(), basis_dir, n_alpha, n_beta, du, use_indo);
     cx.set_magnetic_field(field_dir, 0.0);
     diis::solve_cndo(cx);
 

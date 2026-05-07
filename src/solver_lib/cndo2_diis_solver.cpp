@@ -118,11 +118,20 @@ void extrapolate_f(ComplexMat &new_f, const RealVec &coefficients,
   }
 }
 
-int solve_cndo(CNDO2System &sys, int max_iters, double tol) {
-  RealMat p_alpha =
-      RealMat(sys.num_orbitals(), sys.num_orbitals(), arma::fill::randu);
-  RealMat p_beta =
-      RealMat(sys.num_orbitals(), sys.num_orbitals(), arma::fill::randu);
+int solve_cndo(CNDO2System &sys, int max_iters, double tol, bool keep_p) {
+  RealMat p_alpha, p_beta;
+  if (!keep_p) {
+     p_alpha =
+        RealMat(sys.num_orbitals(), sys.num_orbitals(), arma::fill::randu);
+    p_alpha = 0.5 * (p_alpha + p_alpha.t());
+    p_beta =
+        RealMat(sys.num_orbitals(), sys.num_orbitals(), arma::fill::randu);
+    p_beta = 0.5 * (p_beta + p_beta.t());
+  } else {
+    p_alpha = sys.get_p_alpha();
+    p_beta = sys.get_p_beta();
+  }
+
   sys.set_p(p_alpha, p_beta);
 
   size_t error_lengths = 10; // sys.num_orbitals();
@@ -185,11 +194,19 @@ int solve_cndo(CNDO2System &sys, int max_iters, double tol) {
   throw std::runtime_error("Failed to converge!");
 }
 
-int solve_cndo(CNDO2SystemComplex &sys, int max_iters, double tol) {
-  ComplexMat p_alpha =
-      ComplexMat(sys.num_orbitals(), sys.num_orbitals(), arma::fill::randu);
-  ComplexMat p_beta =
-      ComplexMat(sys.num_orbitals(), sys.num_orbitals(), arma::fill::randu);
+int solve_cndo(CNDO2SystemComplex &sys, int max_iters, double tol, bool keep_p) {
+  ComplexMat p_alpha, p_beta;
+  if (!keep_p) {
+    p_alpha =
+        ComplexMat(sys.num_orbitals(), sys.num_orbitals(), arma::fill::randu);
+    p_alpha = 0.5 * (p_alpha + p_alpha.t());
+    p_beta =
+        ComplexMat(sys.num_orbitals(), sys.num_orbitals(), arma::fill::randu);
+    p_beta = 0.5 * (p_beta + p_beta.t());
+  } else {
+    p_alpha = sys.get_p_alpha();
+    p_beta = sys.get_p_beta();
+  }
   sys.set_p(p_alpha, p_beta);
 
   size_t error_lengths = 10; // sys.num_orbitals();
