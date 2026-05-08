@@ -1,0 +1,6 @@
+{
+    "atoms_file_path": "atoms/nitroethane.xyz",
+    "output_file_path": "student_output/nitroethane.hdf5",
+    "num_alpha_electrons": 20,
+    "num_beta_electrons": 20
+}

@@ -1,5 +1,5 @@
 {
-  "output_csv": "student_output/nmr_1h_training_features.csv",
+  "output_csv": "student_output/nmr_1h_training_features_indo.csv",
   "basis_dir": "./basis",
   "field_dir": 2,
   "epsilon": 1.0e-5,
