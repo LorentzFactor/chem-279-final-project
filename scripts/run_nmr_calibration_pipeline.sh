@@ -8,7 +8,24 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
 
 BUILD_DIR="${BUILD_DIR:-$ROOT/build}"
-TRAIN_JSON="${1:-$ROOT/sample_input/nmr_1h_training_export.json}"
+METHOD_INPUT="${1:-}"
+TRAIN_JSON="${2:-$ROOT/sample_input/nmr_1h_training_export.json}"
+
+case "$METHOD_INPUT" in
+  --cndo|cndo)
+    METHOD_FLAG="--cndo"
+    ;;
+  --indo|indo)
+    METHOD_FLAG="--indo"
+    ;;
+  --mindo|mindo)
+    METHOD_FLAG="--mindo"
+    ;;
+  *)
+    echo "First argument must be --cndo, --indo, or --mindo." >&2
+    exit 1
+    ;;
+esac
 
 EXPORT_BIN="$BUILD_DIR/nmr_1h_training_export"
 if [[ ! -x "$EXPORT_BIN" ]]; then
@@ -17,5 +34,16 @@ if [[ ! -x "$EXPORT_BIN" ]]; then
   exit 1
 fi
 
-"$EXPORT_BIN" "$TRAIN_JSON"
-python3 "$ROOT/scripts/fit_nmr_shift_calibration.py" "$ROOT/student_output/nmr_1h_training_features.csv"
+OUTPUT_CSV="$(python3 - "$TRAIN_JSON" <<'PY'
+import json
+import sys
+
+with open(sys.argv[1], encoding='utf-8') as handle:
+    data = json.load(handle)
+
+print(data["output_csv"])
+PY
+)"
+
+"$EXPORT_BIN" "$METHOD_FLAG" "$TRAIN_JSON"
+python3 "$ROOT/scripts/fit_nmr_shift_calibration.py" "$ROOT/$OUTPUT_CSV"

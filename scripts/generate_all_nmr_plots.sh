@@ -15,6 +15,7 @@ H_EXPORT="$BUILD_DIR/nmr_1h_training_export"
 H_CALC_PLOT="$ROOT/scripts/plot_nmr_training_spectrum.py"
 C_CALC="$BUILD_DIR/nmr_13c_calc"
 C_PLOT="$ROOT/scripts/plot_nmr_13c_calc_peaks.py"
+COMPARE_PLOTS="$ROOT/scripts/generate_all_nmr_method_comparison_plots.sh"
 TRAIN_JSON="$ROOT/sample_input/nmr_1h_training_export.json"
 CAL_JSON="$ROOT/sample_input/methane.json"
 REF_JSON="$ROOT/sample_input/methane.json"
@@ -79,5 +80,10 @@ isobutane
 n-butane
 n-pentane
 LABELS
+
+if [[ -f "$COMPARE_PLOTS" ]]; then
+  echo "=== CNDO vs INDO comparison plots ==="
+  BUILD_DIR="$BUILD_DIR" "$COMPARE_PLOTS"
+fi
 
 echo "Done. Outputs under student_output/"
