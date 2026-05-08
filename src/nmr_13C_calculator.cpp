@@ -183,7 +183,7 @@ static void write_results_json(
 int main(int argc, char **argv) {
   if (argc != 4 && argc != 5) {
     std::cerr << "Usage: " << argv[0]
-              << " [--cndo|--indo] path/to/molecule_config.json"
+              << " [--cndo|--indo|--mindo] path/to/molecule_config.json"
               << " path/to/reference_config.json [results.json]\n"
               << "Example (from repo root): " << argv[0]
               << " --cndo sample_input/ethane.json sample_input/methane.json\n"
@@ -211,7 +211,7 @@ int main(int argc, char **argv) {
   } else if (method_flag == "--indo") {
     use_indo = true;
   } else {
-    std::cerr << "First argument must be --cndo or --indo.\n";
+    std::cerr << "First argument must be --cndo, --indo, or --mindo.\n";
     return EXIT_FAILURE;
   }
 

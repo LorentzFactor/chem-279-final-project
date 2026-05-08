@@ -1,5 +1,5 @@
 // Batch-export ¹H shielding features (σ_para, σ_dia, etc.) for empirical δ fitting.
-// Usage: nmr_1h_training_export [--cndo|--indo] path/to/training_list.json
+// Usage: nmr_1h_training_export [--cndo|--indo|--mindo] path/to/training_list.json
 // JSON schema: see sample_input/nmr_1h_training_export.json
 
 #include <cstdlib>
@@ -77,7 +77,7 @@ int main(int argc, char **argv) {
   if (argc != 3) {
     std::cerr
         << "Usage: " << argv[0]
-        << " [--cndo|--indo] path/to/training_list.json\n"
+        << " [--cndo|--indo|--mindo] path/to/training_list.json\n"
         << "Writes CSV path from JSON key \"output_csv\" (see "
            "sample_input/nmr_1h_training_export.json).\n";
     return EXIT_FAILURE;
@@ -90,7 +90,7 @@ int main(int argc, char **argv) {
   } else if (method_flag == "--indo") {
     use_indo = true;
   } else {
-    std::cerr << "First argument must be --cndo or --indo.\n";
+    std::cerr << "First argument must be --cndo, --indo, or --mindo.\n";
     return EXIT_FAILURE;
   }
 
