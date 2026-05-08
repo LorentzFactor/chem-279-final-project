@@ -76,7 +76,6 @@ std::pair<MatT, MatT> build_cndo2_fock(SystemT &sys, const MatT &p_alpha,
 
   if (sys.use_indo()) {
     int iorbital = 0;
-    #pragma omp parallel for
     for (size_t iatom = 0; iatom < sys.num_atoms(); ++iatom) {
       const Atom &atom = sys.get_atom(iatom);
       double diagonal_interatomic_sum = 0;
