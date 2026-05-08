@@ -7,5 +7,12 @@
     "experimental_13c_shift_ppm": [5.7, 5.7],
     "delta_e": 11.46,
     "shift_calibration_beta0": -2.260714592157854,
-    "shift_calibration_beta1": 10.110160064035133
+    "shift_calibration_beta1": 10.110160064035133,
+    "reference_values": {
+      "atomization_energy": {
+        "value": 2787.0,
+        "units": "kJ/mol",
+        "source": "https://cccbdb.nist.gov/ea2x.asp"
+      }
+    }
 }

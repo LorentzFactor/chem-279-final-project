@@ -8,5 +8,12 @@
     "delta_e": 10.51,
     "distance_unit": "angstrom",
     "shift_calibration_beta0": -2.260714592157854,
-    "shift_calibration_beta1": 10.110160064035133
+    "shift_calibration_beta1": 10.110160064035133,
+    "reference_values": {
+      "atomization_energy": {
+        "value": 5111.5,
+        "units": "kJ/mol",
+        "source": "https://cccbdb.nist.gov/ea2x.asp"
+      }
+    }
 }

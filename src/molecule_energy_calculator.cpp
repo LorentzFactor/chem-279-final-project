@@ -16,7 +16,12 @@ namespace fs = std::filesystem;
 using json = nlohmann::json;
 
 namespace {
-constexpr double kEvToKcalPerMol = 23.060547830619;
+constexpr double kEvToKJPerMol = 96.48530749925793;
+
+enum class OutputFormat {
+  kText,
+  kJson,
+};
 }
 
 inline system_lib::DistanceUnits extract_config_units(const json &config) {
@@ -32,9 +37,10 @@ double solve_isolated_atom_energy(const system_lib::Atom &atom,
                                   bool use_indo,
                                   int scf_max_iters,
                                   double scf_tol) {
-  const int z = static_cast<int>(atom.get_atomic_number());
-  const int nalpha = (z + 1) / 2;
-  const int nbeta = z / 2;
+  // Match the CNDO/INDO valence-electron convention used in the Fock build.
+  const int z_valence = static_cast<int>(atom.get_atom_constant("Z_A"));
+  const int nalpha = (z_valence + 1) / 2;
+  const int nbeta = z_valence / 2;
 
   std::vector<system_lib::Atom> singleton_atoms{atom};
   system_lib::CNDO2System atom_sys(singleton_atoms, nalpha, nbeta, use_indo);
@@ -43,10 +49,11 @@ double solve_isolated_atom_energy(const system_lib::Atom &atom,
 }
 
 int main(int argc, char **argv) {
-  if (argc != 3) {
-    std::cerr << "Usage: " << argv[0] << " [--cndo|--indo] path/to/molecule_config.json\n"
+  if (argc < 3 || argc > 4) {
+    std::cerr << "Usage: " << argv[0]
+              << " [--cndo|--indo] [--json] path/to/molecule_config.json\n"
               << "Example (from repo root): " << argv[0]
-              << " --cndo sample_input/ethane.json\n"
+              << " --cndo --json sample_input/ethane.json\n"
               << "JSON: atoms_file_path, num_alpha_electrons, num_beta_electrons;\n"
               << "optional: distance_unit, basis_dir (default \"./basis\"),\n"
               << "optional: scf_max_iters (default 1000), scf_tol (default 1e-6).\n";
@@ -54,7 +61,44 @@ int main(int argc, char **argv) {
   }
 
   bool use_indo = false;
-  std::string method_flag(argv[1]);
+  bool method_selected = false;
+  OutputFormat output_format = OutputFormat::kText;
+  fs::path config_file_path;
+
+  for (int i = 1; i < argc; ++i) {
+    std::string arg(argv[i]);
+    if (arg == "--cndo") {
+      use_indo = false;
+      method_selected = true;
+      continue;
+    }
+    if (arg == "--indo") {
+      use_indo = true;
+      method_selected = true;
+      continue;
+    }
+    if (arg == "--json") {
+      output_format = OutputFormat::kJson;
+      continue;
+    }
+    if (!config_file_path.empty()) {
+      std::cerr << "Unexpected extra argument: " << arg << "\n";
+      return EXIT_FAILURE;
+    }
+    config_file_path = arg;
+  }
+
+  if (config_file_path.empty()) {
+    std::cerr << "Missing molecule config path.\n";
+    return EXIT_FAILURE;
+  }
+
+  if (!method_selected) {
+    std::cerr << "Missing method flag; use --cndo or --indo.\n";
+    return EXIT_FAILURE;
+  }
+
+  std::string method_flag = use_indo ? "--indo" : "--cndo";
   if (method_flag == "--cndo") {
     use_indo = false;
   } else if (method_flag == "--indo") {
@@ -64,7 +108,6 @@ int main(int argc, char **argv) {
     return EXIT_FAILURE;
   }
 
-  fs::path config_file_path(argv[2]);
   if (!fs::exists(config_file_path)) {
     std::cerr << "Path: " << config_file_path << " does not exist\n";
     return EXIT_FAILURE;
@@ -112,17 +155,30 @@ int main(int argc, char **argv) {
           mol_sys.get_atom(i), use_indo, scf_max_iters, scf_tol);
     }
     const double atomization_energy = isolated_atoms_total - total_energy;
-    const double atomization_energy_kcal = atomization_energy * kEvToKcalPerMol;
+    const double atomization_energy_kj = atomization_energy * kEvToKJPerMol;
 
-    std::cout << std::fixed << std::setprecision(8);
-    std::cout << "Method: " << (use_indo ? "INDO" : "CNDO/2") << "\n";
-    std::cout << "Electronic energy (eV): " << electronic_energy << "\n";
-    std::cout << "Nuclear energy (eV):    " << nuclear_energy << "\n";
-    std::cout << "Total energy (eV):      " << total_energy << "\n";
-    std::cout << "Atomization energy (eV, sum(E_atoms)-E_mol): "
-              << atomization_energy << "\n";
-    std::cout << "Atomization energy (kcal/mol): " << atomization_energy_kcal
-          << "\n";
+    if (output_format == OutputFormat::kJson) {
+      json output = {
+          {"method", use_indo ? "INDO" : "CNDO/2"},
+          {"config_file_path", config_file_path.string()},
+          {"electronic_energy_ev", electronic_energy},
+          {"nuclear_energy_ev", nuclear_energy},
+          {"total_energy_ev", total_energy},
+          {"atomization_energy_ev", atomization_energy},
+          {"atomization_energy_kj_per_mol", atomization_energy_kj},
+      };
+      std::cout << output.dump(2) << "\n";
+    } else {
+      std::cout << std::fixed << std::setprecision(8);
+      std::cout << "Method: " << (use_indo ? "INDO" : "CNDO/2") << "\n";
+      std::cout << "Electronic energy (eV): " << electronic_energy << "\n";
+      std::cout << "Nuclear energy (eV):    " << nuclear_energy << "\n";
+      std::cout << "Total energy (eV):      " << total_energy << "\n";
+      std::cout << "Atomization energy (eV, sum(E_atoms)-E_mol): "
+                << atomization_energy << "\n";
+      std::cout << "Atomization energy (kJ/mol): " << atomization_energy_kj
+                << "\n";
+    }
   } catch (const std::exception &e) {
     std::cerr << "Error: " << e.what() << "\n";
     return EXIT_FAILURE;
