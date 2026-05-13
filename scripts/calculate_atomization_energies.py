@@ -62,10 +62,10 @@ def parse_args() -> argparse.Namespace:
         help="Path for CSV export of per-molecule atomization energy comparisons",
     )
     parser.add_argument(
-        "--plot-out",
+        "--indo-vs-cndo2-out",
         type=Path,
-        default=repo_root / "student_output" / "atomization_energy_parity.png",
-        help="Path for side-by-side CNDO/INDO parity plot image",
+        default=repo_root / "student_output" / "atomization_energy_parity_INDO_CNDO2.png",
+        help="Path for INDO vs CNDO/2 (no reference) parity plot image",
     )
     parser.add_argument(
         "--dpi",
@@ -201,57 +201,21 @@ def write_csv(rows: list[dict[str, Any]], csv_out: Path) -> None:
             writer.writerow({name: row[name] for name in fieldnames})
 
 
-def draw_method_parity(ax: Any, rows: list[dict[str, Any]], method_name: str) -> None:
-    method_rows = [row for row in rows if row["method"] == method_name]
-    ax.set_title(method_name)
-    ax.set_xlabel("Reference atomization energy (kJ/mol)")
-    ax.set_ylabel("Calculated atomization energy (kJ/mol)")
 
-    if not method_rows:
-        ax.text(0.5, 0.5, "No data", ha="center", va="center", transform=ax.transAxes)
-        return
-
-    xs = [row["reference_kj_per_mol"] for row in method_rows]
-    ys = [row["calculated_kj_per_mol"] for row in method_rows]
-    labels = [row["label"] for row in method_rows]
-
-    min_val = min(min(xs), min(ys))
-    max_val = max(max(xs), max(ys))
-    span = max_val - min_val
-    pad = max(5.0, 0.08 * span if span > 0.0 else 10.0)
-    lo = min_val - pad
-    hi = max_val + pad
-
-    ax.scatter(xs, ys, s=42, alpha=0.9, color="#1f77b4", edgecolors="none")
-    for label, x_val, y_val in zip(labels, xs, ys):
-        ax.annotate(
-            label,
-            (x_val, y_val),
-            xytext=(4, 4),
-            textcoords="offset points",
-            fontsize=SMALL_ANNOTATION_FONT_SIZE,
-        )
-
-    errors = [row["abs_error_kj_per_mol"] for row in method_rows]
-    mae = sum(errors) / len(errors)
-    rho = pearson_rho(method_rows)
-    ax.plot([lo, hi], [lo, hi], color="black", linewidth=1.0, linestyle="--")
-    ax.set_xlim(lo, hi)
-    ax.set_ylim(lo, hi)
-    ax.set_aspect("equal", adjustable="box")
-    ax.text(
-        0.03,
-        0.97,
-        f"n={len(method_rows)}\nMAE={mae:.1f} kJ/mol\nrho={rho:.4f}",
-        ha="left",
-        va="top",
-        transform=ax.transAxes,
-        fontsize=ANNOTATION_FONT_SIZE,
-        bbox={"boxstyle": "round,pad=0.25", "facecolor": "white", "alpha": 0.85, "edgecolor": "#cccccc"},
-    )
+def _jitter(vals: list[float], scale: float, seed: int = 0) -> list[float]:
+    import numpy as np
+    rng = np.random.default_rng(seed)
+    return (np.asarray(vals, dtype=float) + rng.normal(0.0, scale, len(vals))).tolist()
 
 
-def write_parity_plot(rows: list[dict[str, Any]], plot_out: Path, dpi: int) -> None:
+_METHOD_COLORS = {
+    "CNDO/2": "#1f77b4",
+    "INDO": "#d62728",
+}
+
+
+
+def write_parity_plot_indo_vs_cndo2(rows: list[dict[str, Any]], plot_out: Path, dpi: int) -> None:
     try:
         import matplotlib.pyplot as plt
     except ImportError as exc:
@@ -259,14 +223,77 @@ def write_parity_plot(rows: list[dict[str, Any]], plot_out: Path, dpi: int) -> N
 
     apply_large_plot_text(plt)
 
-    fig, axes = plt.subplots(1, 2, figsize=(11.5, 5.5), constrained_layout=True)
-    for ax, (_, method_name) in zip(axes, METHODS):
-        draw_method_parity(ax, rows, method_name)
+    cndo_map = {row["label"]: row["calculated_kj_per_mol"] for row in rows if row["method"] == "CNDO/2"}
+    indo_map = {row["label"]: row["calculated_kj_per_mol"] for row in rows if row["method"] == "INDO"}
+    paired_labels = sorted(set(cndo_map) & set(indo_map))
 
-    fig.suptitle("Atomization Energy Parity: CNDO/2 vs INDO", fontsize=FIGURE_TITLE_SIZE)
+    fig, ax = plt.subplots(figsize=(6.5, 6.0), constrained_layout=True)
+    ax.set_xlabel("CNDO/2 atomization energy (kJ/mol)")
+    ax.set_ylabel("INDO atomization energy (kJ/mol)")
+
+    if not paired_labels:
+        ax.text(0.5, 0.5, "No paired data", ha="center", va="center", transform=ax.transAxes)
+        fig.savefig(plot_out, dpi=dpi, bbox_inches="tight")
+        plt.close(fig)
+        return
+
+    xs = [cndo_map[lbl] for lbl in paired_labels]
+    ys = [indo_map[lbl] for lbl in paired_labels]
+
+    all_vals = xs + ys
+    jitter_scale = 0.015 * (max(all_vals) - min(all_vals)) if all_vals else 0.0
+    jxs = xs
+    jys = _jitter(ys, jitter_scale, seed=1)
+
+    ax.scatter(jxs, jys, s=55, alpha=0.9, color=_METHOD_COLORS["CNDO/2"], edgecolors="none", zorder=3)
+
+    all_vals = xs + ys
+    span = max(all_vals) - min(all_vals)
+    pad = max(5.0, 0.08 * span if span > 0.0 else 10.0)
+    lo, hi = min(all_vals) - pad, max(all_vals) + pad
+
+    _label_nudge = {
+        "isobutane": (6, -4),
+        "2,3-dimethylbutane": (-105, 2),
+        "ethane": (10, -4),
+        "HF": (-8, 7),
+        "H2": (4, -6),
+        "methane": (4, 3),
+    }
+    for lbl, x_val, y_val in zip(paired_labels, jxs, jys):
+        ox, oy = _label_nudge.get(lbl, (4, 4))
+        ax.annotate(
+            lbl,
+            xy=(x_val, y_val),
+            xytext=(ox, oy),
+            textcoords="offset points",
+            fontsize=SMALL_ANNOTATION_FONT_SIZE,
+            bbox=dict(boxstyle="round,pad=0.12", facecolor="white", edgecolor="none", alpha=0.9),
+        )
+    ax.plot([lo, hi], [lo, hi], color="black", linewidth=1.0, linestyle="--", zorder=2)
+    ax.set_xlim(lo, hi)
+    ax.set_ylim(lo, hi)
+    ax.set_aspect("equal", adjustable="box")
+
+    diffs = [y - x for x, y in zip(xs, ys)]
+    abs_diffs = [abs(d) for d in diffs]
+    mae = sum(abs_diffs) / len(abs_diffs)
+    pseudo_rows = [{"reference_kj_per_mol": x, "calculated_kj_per_mol": y} for x, y in zip(xs, ys)]
+    rho = pearson_rho(pseudo_rows)  # type: ignore[arg-type]
+    ax.text(
+        0.03, 0.97,
+        f"MAE={mae:.1f} kJ/mol\nrho={rho:.4f}",
+        ha="left", va="top",
+        transform=ax.transAxes,
+        fontsize=ANNOTATION_FONT_SIZE,
+        bbox={"boxstyle": "round,pad=0.25", "facecolor": "white", "alpha": 0.85, "edgecolor": "#cccccc"},
+    )
+
+    fig.suptitle("Atomization Energy: INDO vs CNDO/2", fontsize=FIGURE_TITLE_SIZE)
     plot_out.parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(plot_out, dpi=dpi, bbox_inches="tight")
     plt.close(fig)
+
 
 
 def main() -> int:
@@ -275,7 +302,7 @@ def main() -> int:
     input_dir = args.input_dir.resolve()
     calculator = args.calculator.resolve()
     csv_out = args.csv_out.resolve()
-    plot_out = args.plot_out.resolve()
+    indo_vs_cndo2_out = args.indo_vs_cndo2_out.resolve()
 
     if not input_dir.is_dir():
         print(f"Input directory not found: {input_dir}", file=sys.stderr)
@@ -328,10 +355,10 @@ def main() -> int:
         write_csv(rows, csv_out)
         print(f"Wrote CSV: {csv_out}")
         try:
-            write_parity_plot(rows, plot_out, args.dpi)
-            print(f"Wrote parity plot: {plot_out}")
+            write_parity_plot_indo_vs_cndo2(rows, indo_vs_cndo2_out, args.dpi)
+            print(f"Wrote INDO vs CNDO/2 plot: {indo_vs_cndo2_out}")
         except RuntimeError as exc:
-            print(f"Could not write parity plot: {exc}", file=sys.stderr)
+            print(f"Could not write plot: {exc}", file=sys.stderr)
             return 1
 
     if failures:
