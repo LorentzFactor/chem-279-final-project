@@ -11,6 +11,12 @@ import sys
 from collections import defaultdict
 from pathlib import Path
 
+from matplotlib_defaults import (
+    FIGURE_TITLE_SIZE,
+    LEGEND_FONT_SIZE,
+    apply_large_plot_text,
+)
+
 
 def ols_1d(xs: list[float], ys: list[float]) -> tuple[float, float]:
     n = len(xs)
@@ -214,7 +220,7 @@ def style_axis(ax, *, title: str, x_max: float, x_min: float, y_max: float, y_la
     ax.set_xlabel("delta (ppm)")
     ax.set_xlim(x_max, x_min)
     ax.set_ylim(0.0, y_max)
-    ax.legend(loc="upper left", fontsize=7)
+    ax.legend(loc="upper left", bbox_to_anchor=(1, 1), fontsize=LEGEND_FONT_SIZE)
 
 
 def main() -> int:
@@ -259,6 +265,8 @@ def main() -> int:
     except ImportError:
         print("Install matplotlib: pip install matplotlib", file=sys.stderr)
         return 1
+
+    apply_large_plot_text(plt)
 
     h_rows, beta_cndo, beta_indo = load_1h_rows(args.training_json, args.cndo_csv, args.indo_csv)
     c_rows = load_13c_rows(args.carbon_manifest_json)
@@ -347,7 +355,7 @@ def main() -> int:
         "CNDO vs INDO NMR Comparison\n"
         f"1H fits: CNDO beta0={beta_cndo[0]:.3f}, beta1={beta_cndo[1]:.3f}; "
         f"INDO beta0={beta_indo[0]:.3f}, beta1={beta_indo[1]:.3f}",
-        fontsize=12,
+        fontsize=FIGURE_TITLE_SIZE,
     )
     fig.tight_layout(rect=(0.0, 0.0, 1.0, 0.97))
     args.out.parent.mkdir(parents=True, exist_ok=True)

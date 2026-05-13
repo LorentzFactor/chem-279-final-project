@@ -1,0 +1,25 @@
+{
+    "atoms_file_path": "atoms/n-hexane_PCS2.xyz",
+    "output_file_path": "student_output/n_hexane.hdf5",
+    "num_alpha_electrons": 19,
+    "num_beta_electrons": 19,
+    "label": "n-hexane",
+    "distance_unit": "angstrom",
+    "reference_values": {
+      "takaishi_1974_chemical_shift": {
+        "1": 114.22,
+        "2": 105.86,
+        "3": 97.71
+      },
+      "takaishi_1974_chemical_shift_experimental": {
+        "1": 114.82,
+        "2": 105.78,
+        "3": 96.66
+      },
+      "atomization_energy": {
+        "value": 7421.8,
+        "units": "kJ/mol",
+        "source": "https://cccbdb.nist.gov/ea2x.asp"
+      }
+    }
+}

@@ -22,6 +22,11 @@ enum class OutputFormat {
   kText,
   kJson,
 };
+
+enum class IterationMethod {
+  kDiis,
+  kFixedPoint,
+};
 }
 
 inline system_lib::DistanceUnits extract_config_units(const json &config) {
@@ -35,6 +40,7 @@ inline system_lib::DistanceUnits extract_config_units(const json &config) {
 
 double solve_isolated_atom_energy(const system_lib::Atom &atom,
                                   bool use_indo,
+                                  IterationMethod iteration_method,
                                   int scf_max_iters,
                                   double scf_tol) {
   // Match the CNDO/INDO valence-electron convention used in the Fock build.
@@ -44,14 +50,19 @@ double solve_isolated_atom_energy(const system_lib::Atom &atom,
 
   std::vector<system_lib::Atom> singleton_atoms{atom};
   system_lib::CNDO2System atom_sys(singleton_atoms, nalpha, nbeta, use_indo);
-  diis::solve_cndo(atom_sys, scf_max_iters, scf_tol);
+  if (iteration_method == IterationMethod::kDiis) {
+    diis::solve_cndo(atom_sys, scf_max_iters, scf_tol);
+  } else {
+    fixed_point::solve_cndo(atom_sys, scf_max_iters, scf_tol);
+  }
   return atom_sys.compute_total_energy();
 }
 
 int main(int argc, char **argv) {
-  if (argc < 3 || argc > 4) {
+  if (argc < 3 || argc > 6) {
     std::cerr << "Usage: " << argv[0]
-              << " [--cndo|--indo] [--json] path/to/molecule_config.json\n"
+              << " [--cndo|--indo] [--diis|--fixed-point] [--json]"
+              << " path/to/molecule_config.json\n"
               << "Example (from repo root): " << argv[0]
               << " --cndo --json sample_input/ethane.json\n"
               << "JSON: atoms_file_path, num_alpha_electrons, num_beta_electrons;\n"
@@ -63,6 +74,8 @@ int main(int argc, char **argv) {
   bool use_indo = false;
   bool method_selected = false;
   OutputFormat output_format = OutputFormat::kText;
+  IterationMethod iteration_method = IterationMethod::kDiis;
+  bool iteration_method_selected = false;
   fs::path config_file_path;
 
   for (int i = 1; i < argc; ++i) {
@@ -79,6 +92,28 @@ int main(int argc, char **argv) {
     }
     if (arg == "--json") {
       output_format = OutputFormat::kJson;
+      continue;
+    }
+    if (arg == "--diis") {
+      if (iteration_method_selected &&
+          iteration_method != IterationMethod::kDiis) {
+        std::cerr << "Conflicting iteration method flags; use only one of"
+                  << " --diis or --fixed-point.\n";
+        return EXIT_FAILURE;
+      }
+      iteration_method = IterationMethod::kDiis;
+      iteration_method_selected = true;
+      continue;
+    }
+    if (arg == "--fixed-point") {
+      if (iteration_method_selected &&
+          iteration_method != IterationMethod::kFixedPoint) {
+        std::cerr << "Conflicting iteration method flags; use only one of"
+                  << " --diis or --fixed-point.\n";
+        return EXIT_FAILURE;
+      }
+      iteration_method = IterationMethod::kFixedPoint;
+      iteration_method_selected = true;
       continue;
     }
     if (!config_file_path.empty()) {
@@ -143,7 +178,10 @@ int main(int argc, char **argv) {
     system_lib::CNDO2System mol_sys = system_lib::CNDO2System::from_files(
         atoms_file_path, basis_dir, num_alpha_electrons, num_beta_electrons,
         distance_units, use_indo);
-    diis::solve_cndo(mol_sys, scf_max_iters, scf_tol);
+    const int scf_iterations =
+      iteration_method == IterationMethod::kDiis
+        ? diis::solve_cndo(mol_sys, scf_max_iters, scf_tol)
+        : fixed_point::solve_cndo(mol_sys, scf_max_iters, scf_tol);
 
     const double electronic_energy = mol_sys.compute_electronic_energy();
     const double nuclear_energy = mol_sys.compute_nuclear_energy();
@@ -152,14 +190,20 @@ int main(int argc, char **argv) {
     double isolated_atoms_total = 0.0;
     for (size_t i = 0; i < mol_sys.num_atoms(); ++i) {
       isolated_atoms_total += solve_isolated_atom_energy(
-          mol_sys.get_atom(i), use_indo, scf_max_iters, scf_tol);
+          mol_sys.get_atom(i), use_indo, iteration_method, scf_max_iters,
+          scf_tol);
     }
     const double atomization_energy = isolated_atoms_total - total_energy;
     const double atomization_energy_kj = atomization_energy * kEvToKJPerMol;
+    const std::string iteration_method_name =
+        iteration_method == IterationMethod::kDiis ? "diis" : "fixed-point";
 
     if (output_format == OutputFormat::kJson) {
       json output = {
           {"method", use_indo ? "INDO" : "CNDO/2"},
+          {"iteration_method", iteration_method_name},
+          {"scf_iterations", scf_iterations},
+          {"scf_converged", true},
           {"config_file_path", config_file_path.string()},
           {"electronic_energy_ev", electronic_energy},
           {"nuclear_energy_ev", nuclear_energy},
@@ -171,6 +215,8 @@ int main(int argc, char **argv) {
     } else {
       std::cout << std::fixed << std::setprecision(8);
       std::cout << "Method: " << (use_indo ? "INDO" : "CNDO/2") << "\n";
+      std::cout << "Iteration method: " << iteration_method_name << "\n";
+      std::cout << "SCF iterations: " << scf_iterations << "\n";
       std::cout << "Electronic energy (eV): " << electronic_energy << "\n";
       std::cout << "Nuclear energy (eV):    " << nuclear_energy << "\n";
       std::cout << "Total energy (eV):      " << total_energy << "\n";

@@ -60,28 +60,16 @@ echo "=== 1H: export CNDO and INDO training CSVs ==="
 "$H_EXPORT" --cndo "$tmpdir/nmr_1h_training_export_cndo.json"
 "$H_EXPORT" --indo "$tmpdir/nmr_1h_training_export_indo.json"
 
-main_json_for_label() {
-  case "$1" in
-    methane) echo "$ROOT/sample_input/methane.json" ;;
-    ethane) echo "$ROOT/sample_input/ethane.json" ;;
-    propane) echo "$ROOT/sample_input/propane.json" ;;
-    isobutane) echo "$ROOT/sample_input/isobutane.json" ;;
-    n-butane) echo "$ROOT/sample_input/n_butane.json" ;;
-    n-pentane) echo "$ROOT/sample_input/n_pentane.json" ;;
-    *) echo "" ;;
-  esac
-}
-
 echo "=== 13C: calculate CNDO and INDO comparison inputs ==="
 entries_json="[]"
-while IFS= read -r label; do
-  [[ -z "$label" ]] && continue
-  main_json="$(main_json_for_label "$label")"
-  if [[ -z "$main_json" || ! -f "$main_json" ]]; then
-    echo "  skip $label (no sample_input mapping)" >&2
-    continue
-  fi
 
+# Dynamically discover all molecules with experimental_13c_shift_ppm in sample_input/
+while IFS= read -r main_json; do
+  [[ -z "$main_json" ]] && continue
+  
+  # Extract label from filename (e.g., "propane.json" -> "propane")
+  label=$(basename "$main_json" .json)
+  
   cndo_json="$ROOT/student_output/${label}_13c_calc_cndo.json"
   indo_json="$ROOT/student_output/${label}_13c_calc_indo.json"
 
@@ -89,14 +77,21 @@ while IFS= read -r label; do
   "$C_CALC" --cndo "$main_json" "$REF_JSON" "$cndo_json"
   "$C_CALC" --indo "$main_json" "$REF_JSON" "$indo_json"
   entries_json="$entries_json"$'\n'"$main_json|$cndo_json|$indo_json"
-done <<'LABELS'
-methane
-ethane
-propane
-isobutane
-n-butane
-n-pentane
-LABELS
+done < <(python3 - "$ROOT/sample_input" <<'PY'
+import json
+from pathlib import Path
+import sys
+
+sample_dir = Path(sys.argv[1])
+for json_file in sorted(sample_dir.glob("*.json")):
+    try:
+        data = json.loads(json_file.read_text())
+        if "experimental_13c_shift_ppm" in data:
+            print(str(json_file))
+    except (json.JSONDecodeError, IOError):
+        pass
+PY
+)
 
 ENTRIES_JSON="$entries_json" python3 - "$CARBON_MANIFEST" <<'PY'
 import json

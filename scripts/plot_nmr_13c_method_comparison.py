@@ -8,6 +8,8 @@ import json
 import sys
 from pathlib import Path
 
+from matplotlib_defaults import LEGEND_FONT_SIZE, apply_large_plot_text
+
 
 def cluster_indices_by_delta(values: list[float], tol_ppm: float) -> list[list[int]]:
     if not values:
@@ -81,6 +83,8 @@ def main() -> int:
         print("Install matplotlib: pip install matplotlib", file=sys.stderr)
         return 1
 
+    apply_large_plot_text(plt)
+
     main_cfg = json.loads(args.main_json.read_text())
     cndo = json.loads(args.cndo_calc_json.read_text())
     indo = json.loads(args.indo_calc_json.read_text())
@@ -141,7 +145,7 @@ def main() -> int:
     ax.set_xlabel("delta (ppm)")
     ax.set_xlim(max(all_centers) + args.ppm_pad, min(all_centers) - args.ppm_pad)
     ax.set_ylim(0.0, 1.08)
-    ax.legend(loc="upper left", fontsize=8)
+    ax.legend(loc="upper left", bbox_to_anchor=(1, 1), fontsize=LEGEND_FONT_SIZE)
 
     fig.tight_layout()
     args.out.parent.mkdir(parents=True, exist_ok=True)

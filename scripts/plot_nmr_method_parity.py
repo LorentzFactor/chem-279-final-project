@@ -11,6 +11,8 @@ import sys
 from collections import defaultdict
 from pathlib import Path
 
+from matplotlib_defaults import FIGURE_TITLE_SIZE, LEGEND_FONT_SIZE, apply_large_plot_text
+
 
 def ols_1d(xs: list[float], ys: list[float]) -> tuple[float, float]:
     n = len(xs)
@@ -151,7 +153,7 @@ def draw_parity(ax, points: list[dict], *, title: str, palette: dict[str, str]) 
     ax.set_title(title)
     ax.set_xlabel("Experimental delta (ppm)")
     ax.set_ylabel("Predicted delta (ppm)")
-    ax.legend(loc="best", fontsize=7)
+    ax.legend(loc="upper left", bbox_to_anchor=(1, 1), fontsize=LEGEND_FONT_SIZE)
 
 
 def main() -> int:
@@ -173,6 +175,8 @@ def main() -> int:
     except ImportError:
         print("Install matplotlib: pip install matplotlib", file=sys.stderr)
         return 1
+
+    apply_large_plot_text(plt)
 
     h1_cndo, h1_cndo_fit = build_1h_points(args.training_json, args.cndo_csv)
     h1_indo, h1_indo_fit = build_1h_points(args.training_json, args.indo_csv)
@@ -223,7 +227,7 @@ def main() -> int:
         f"1H INDO r={h1_indo_r:.3f}, "
         f"13C CNDO r={c13_cndo_r:.3f}, "
         f"13C INDO r={c13_indo_r:.3f}",
-        fontsize=13,
+        fontsize=FIGURE_TITLE_SIZE,
     )
     fig.tight_layout(rect=(0.0, 0.0, 1.0, 0.97))
     args.out.parent.mkdir(parents=True, exist_ok=True)

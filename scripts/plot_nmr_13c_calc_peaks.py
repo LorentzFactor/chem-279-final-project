@@ -42,6 +42,12 @@ import sys
 import tempfile
 from pathlib import Path
 
+from matplotlib_defaults import (
+    LEGEND_FONT_SIZE,
+    SMALL_ANNOTATION_FONT_SIZE,
+    apply_large_plot_text,
+)
+
 
 def plot_stick_overlay_grouped(
     ax,
@@ -83,7 +89,7 @@ def plot_stick_overlay_grouped(
             f"{mp:.1f}",
             ha="center",
             va="bottom",
-            fontsize=8,
+            fontsize=SMALL_ANNOTATION_FONT_SIZE,
             color="black",
             zorder=5,
         )
@@ -93,7 +99,7 @@ def plot_stick_overlay_grouped(
             f"{me:.1f}",
             ha="center",
             va="bottom",
-            fontsize=8,
+            fontsize=SMALL_ANNOTATION_FONT_SIZE,
             color="#c00",
             zorder=5,
         )
@@ -271,6 +277,8 @@ def main() -> int:
         print("Install matplotlib:  pip install matplotlib", file=sys.stderr)
         return 1
 
+    apply_large_plot_text(plt)
+
     fig, ax = plt.subplots(1, 1, figsize=(9.0, 2.8))
     plot_stick_overlay_grouped(
         ax,
@@ -282,7 +290,7 @@ def main() -> int:
     )
     title = f"13C NMR — {data.get('molecule_label', args.main_json.stem)}"
     ax.set_title(title)
-    ax.legend(loc="upper left", fontsize=9)
+    ax.legend(loc="upper left", bbox_to_anchor=(1, 1), fontsize=LEGEND_FONT_SIZE)
     if args.full_ppm_scale:
         ax.set_xlim(args.ppm_max, args.ppm_min)
     else:

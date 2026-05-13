@@ -5,20 +5,11 @@ namespace {
 
 bool solve_diis_coeffs(RealVec &coeffs, const RealMat &solution_mat,
                        const RealVec &target_vec) {
-  bool ok = arma::solve(coeffs, solution_mat, target_vec, arma::solve_opts::no_approx);
+  bool ok = arma::solve(coeffs, solution_mat, target_vec, arma::solve_opts::force_sym);
   if (ok && coeffs.is_finite()) {
     return true;
   }
-
-  RealMat regularized = solution_mat;
-  for (arma::uword i = 0; i + 1 < regularized.n_rows; ++i) {
-    regularized(i, i) += 1.0e-10;
-  }
-
-  ok = arma::solve(coeffs, regularized, target_vec, arma::solve_opts::no_approx);
-  if (ok && coeffs.is_finite()) {
-    return true;
-  }
+  //return true;
 
   coeffs = arma::zeros<RealVec>(target_vec.n_elem);
   if (target_vec.n_elem >= 2) {
@@ -118,15 +109,174 @@ void extrapolate_f(ComplexMat &new_f, const RealVec &coefficients,
   }
 }
 
-int solve_cndo(CNDO2System &sys, int max_iters, double tol, bool keep_p) {
+template <typename SystemType, typename DensityMatrixType>
+void initialize_p_atomic(DensityMatrixType &p_alpha, DensityMatrixType &p_beta,
+                         const SystemType &sys) {
+  p_alpha = DensityMatrixType(sys.num_orbitals(), sys.num_orbitals(),
+                              arma::fill::randu) /
+            10.0;
+  p_beta = DensityMatrixType(sys.num_orbitals(), sys.num_orbitals(),
+                             arma::fill::randu) /
+           10.0;
+
+  for (size_t iatom = 0; iatom < sys.num_atoms(); ++iatom) {
+    const auto &atom_orbital_idx = sys.get_atom_orbital_idxs().at(iatom);
+    const auto &atom = sys.get_atom(iatom);
+    int num_valence_electrons = atom.get_atomic_number();
+    if (num_valence_electrons > 2) {
+      num_valence_electrons -= 2;
+    }
+    if (num_valence_electrons > 10) {
+      num_valence_electrons -= 10;
+    }
+    int alpha_occupation =
+        num_valence_electrons / 2 + (iatom + num_valence_electrons) % 2;
+    int beta_occupation =
+        num_valence_electrons / 2 + (iatom + num_valence_electrons) % 2;
+    for (int i = 0; i < alpha_occupation; ++i) {
+      p_alpha(atom_orbital_idx[0] + i, atom_orbital_idx[0] + i) = 1.0;
+    }
+    for (int i = 0; i < beta_occupation; ++i) {
+      p_beta(atom_orbital_idx[0] + i, atom_orbital_idx[0] + i) = 1.0;
+    }
+  }
+}
+
+template <typename DensityMatrixType>
+DensityMatrixType build_density_from_core_mos(const DensityMatrixType &core_mos,
+                                              int num_occupied) {
+  if (core_mos.n_rows != core_mos.n_cols) {
+    throw std::runtime_error(
+        "Extended Huckel initialization requires square MO coefficients.");
+  }
+  if (num_occupied < 0) {
+    throw std::runtime_error(
+        "Extended Huckel initialization got a negative occupation.");
+  }
+  if (static_cast<arma::uword>(num_occupied) > core_mos.n_cols) {
+    throw std::runtime_error(
+        "Extended Huckel initialization occupation exceeds orbital count.");
+  }
+
+  if (num_occupied == 0) {
+    return DensityMatrixType(core_mos.n_rows, core_mos.n_rows,
+                             arma::fill::zeros);
+  }
+
+  const DensityMatrixType occupied_mos =
+      core_mos.cols(0, static_cast<arma::uword>(num_occupied - 1));
+  return occupied_mos * occupied_mos.t();
+}
+
+double get_extended_huckel_diagonal_element(const Atom &atom,
+                                            const GaussianContracted &orbital,
+                                            bool use_indo) {
+  if (orbital.shell == 0) {
+    return -atom.get_atom_constant("sI+A/2");
+  }
+  if (orbital.shell == 1) {
+    return -atom.get_atom_constant("pI+A/2");
+  }
+  throw std::runtime_error(
+      "Extended Huckel initialization only supports s and p orbitals.");
+}
+
+template <typename SystemType>
+RealMat build_extended_huckel_matrix(const SystemType &sys) {
+  constexpr double kWolfsbergHelmholtzK = 1.75;
+
+  const RealMat overlap = sys.compute_overlap_matrix();
+  if (overlap.n_rows != sys.num_orbitals() ||
+      overlap.n_cols != sys.num_orbitals()) {
+    throw std::runtime_error(
+        "Extended Huckel initialization got an invalid overlap matrix size.");
+  }
+
+  RealVec diagonal(overlap.n_rows, arma::fill::zeros);
+  arma::uword iorbital = 0;
+  for (size_t iatom = 0; iatom < sys.num_atoms(); ++iatom) {
+    const Atom &atom = sys.get_atom(iatom);
+    for (int ilocal = 0; ilocal < atom.num_orbitals(); ++ilocal) {
+      diagonal(iorbital) = get_extended_huckel_diagonal_element(
+          atom, atom.get_atomic_orbital(ilocal), sys.use_indo());
+      ++iorbital;
+    }
+  }
+
+  if (iorbital != overlap.n_rows) {
+    throw std::runtime_error(
+        "Extended Huckel initialization orbital indexing mismatch.");
+  }
+
+  RealMat h_eh = arma::zeros<RealMat>(overlap.n_rows, overlap.n_cols);
+  h_eh.diag() = diagonal;
+  for (arma::uword i = 0; i < overlap.n_rows; ++i) {
+    for (arma::uword j = i + 1; j < overlap.n_cols; ++j) {
+      const double hij =
+          kWolfsbergHelmholtzK * overlap(i, j) * 0.5 * (diagonal(i) + diagonal(j));
+      h_eh(i, j) = hij;
+      h_eh(j, i) = hij;
+    }
+  }
+  return h_eh;
+}
+
+void initialize_p_extended_huckel(RealMat &p_alpha, RealMat &p_beta,
+                                  CNDO2System &sys) {
+  RealMat h_eh = build_extended_huckel_matrix(sys);
+  h_eh = 0.5 * (h_eh + h_eh.t());
+
+  RealVec eh_energies;
+  RealMat eh_mos;
+  const bool ok = arma::eig_sym(eh_energies, eh_mos, h_eh);
+  if (!ok || !eh_mos.is_finite()) {
+    throw std::runtime_error(
+        "Failed to construct Extended Huckel guess for DIIS (real)."
+    );
+  }
+
+  p_alpha = build_density_from_core_mos(eh_mos, sys.get_nalpha());
+  p_beta = build_density_from_core_mos(eh_mos, sys.get_nbeta());
+}
+
+void initialize_p_extended_huckel(ComplexMat &p_alpha, ComplexMat &p_beta,
+                                  CNDO2SystemComplex &sys) {
+  ComplexMat h_eh = arma::conv_to<ComplexMat>::from(build_extended_huckel_matrix(sys));
+  h_eh = 0.5 * (h_eh + h_eh.t());
+
+  RealVec eh_energies;
+  ComplexMat eh_mos;
+  const bool ok = arma::eig_sym(eh_energies, eh_mos, h_eh);
+  if (!ok || !eh_mos.is_finite()) {
+    throw std::runtime_error(
+        "Failed to construct Extended Huckel guess for DIIS (complex)."
+    );
+  }
+
+  p_alpha = build_density_from_core_mos(eh_mos, sys.get_nalpha());
+  p_beta = build_density_from_core_mos(eh_mos, sys.get_nbeta());
+}
+
+template <typename SystemType, typename DensityMatrixType>
+void initialize_p(DensityMatrixType &p_alpha, DensityMatrixType &p_beta,
+                  SystemType &sys, InitialGuess initial_guess) {
+  switch (initial_guess) {
+  case InitialGuess::kAtomic:
+    initialize_p_atomic(p_alpha, p_beta, sys);
+    return;
+  case InitialGuess::kExtendedHuckel:
+    initialize_p_extended_huckel(p_alpha, p_beta, sys);
+    return;
+  }
+
+  throw std::runtime_error("Unknown DIIS initial guess option.");
+}
+
+int solve_cndo(CNDO2System &sys, int max_iters, double tol, bool keep_p,
+               InitialGuess initial_guess) {
   RealMat p_alpha, p_beta;
   if (!keep_p) {
-     p_alpha =
-        RealMat(sys.num_orbitals(), sys.num_orbitals(), arma::fill::randu);
-    p_alpha = 0.5 * (p_alpha + p_alpha.t());
-    p_beta =
-        RealMat(sys.num_orbitals(), sys.num_orbitals(), arma::fill::randu);
-    p_beta = 0.5 * (p_beta + p_beta.t());
+    initialize_p(p_alpha, p_beta, sys, initial_guess);
   } else {
     p_alpha = sys.get_p_alpha();
     p_beta = sys.get_p_beta();
@@ -166,20 +316,24 @@ int solve_cndo(CNDO2System &sys, int max_iters, double tol, bool keep_p) {
     RealVec target_vec_a;
     build_target_vec(target_vec_a, errors_a);
     RealVec solution_vec_a;
-    solve_diis_coeffs(solution_vec_a, solution_mat_a, target_vec_a);
 
     RealMat solution_mat_b;
     build_solutions_mat(solution_mat_b, errors_b);
     RealVec target_vec_b;
     build_target_vec(target_vec_b, errors_b);
     RealVec solution_vec_b;
-    solve_diis_coeffs(solution_vec_b, solution_mat_b, target_vec_b);
 
     RealMat new_f_a;
     RealMat new_f_b;
-    extrapolate_f(new_f_a, solution_vec_a, f_alphas);
-    extrapolate_f(new_f_b, solution_vec_b, f_betas);
-    sys.set_f(new_f_a, new_f_b);
+
+    // Skip and do fixed point until we have enough error vectors to do DIIS, then switch to DIIS.
+    if (true)  {
+      solve_diis_coeffs(solution_vec_a, solution_mat_a, target_vec_a);
+      solve_diis_coeffs(solution_vec_b, solution_mat_b, target_vec_b);
+      extrapolate_f(new_f_a, solution_vec_a, f_alphas);
+      extrapolate_f(new_f_b, solution_vec_b, f_betas);
+      sys.set_f(new_f_a, new_f_b);
+    }
 
     p_alpha = sys.get_occupied_MOs_alpha() * sys.get_occupied_MOs_alpha().t();
     p_beta = sys.get_occupied_MOs_beta() * sys.get_occupied_MOs_beta().t();
@@ -194,15 +348,11 @@ int solve_cndo(CNDO2System &sys, int max_iters, double tol, bool keep_p) {
   throw std::runtime_error("Failed to converge!");
 }
 
-int solve_cndo(CNDO2SystemComplex &sys, int max_iters, double tol, bool keep_p) {
+int solve_cndo(CNDO2SystemComplex &sys, int max_iters, double tol, bool keep_p,
+               InitialGuess initial_guess) {
   ComplexMat p_alpha, p_beta;
   if (!keep_p) {
-    p_alpha =
-        ComplexMat(sys.num_orbitals(), sys.num_orbitals(), arma::fill::randu);
-    p_alpha = 0.5 * (p_alpha + p_alpha.t());
-    p_beta =
-        ComplexMat(sys.num_orbitals(), sys.num_orbitals(), arma::fill::randu);
-    p_beta = 0.5 * (p_beta + p_beta.t());
+    initialize_p(p_alpha, p_beta, sys, initial_guess);
   } else {
     p_alpha = sys.get_p_alpha();
     p_beta = sys.get_p_beta();

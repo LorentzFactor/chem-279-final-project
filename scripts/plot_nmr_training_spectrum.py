@@ -50,6 +50,13 @@ import sys
 from collections import defaultdict
 from pathlib import Path
 
+from matplotlib_defaults import (
+    DENSE_ANNOTATION_FONT_SIZE,
+    LEGEND_FONT_SIZE,
+    SMALL_ANNOTATION_FONT_SIZE,
+    apply_large_plot_text,
+)
+
 
 def lorentzian(x: float, x0: float, fwhm: float) -> float:
     """Unit-height Lorentzian; FWHM in same units as x (ppm)."""
@@ -143,7 +150,7 @@ def plot_stick_overlay_grouped(
             f"{mp:.2f}",
             ha="center",
             va="bottom",
-            fontsize=7,
+            fontsize=SMALL_ANNOTATION_FONT_SIZE,
             color="black",
             zorder=5,
         )
@@ -153,7 +160,7 @@ def plot_stick_overlay_grouped(
             f"{me:.2f}",
             ha="center",
             va="bottom",
-            fontsize=7,
+            fontsize=SMALL_ANNOTATION_FONT_SIZE,
             color="#c00",
             zorder=5,
         )
@@ -211,7 +218,7 @@ def plot_stick_overlay(
             f"{p:.2f}",
             ha="center",
             va="bottom",
-            fontsize=6,
+            fontsize=DENSE_ANNOTATION_FONT_SIZE,
             color="black",
             zorder=5,
         )
@@ -221,7 +228,7 @@ def plot_stick_overlay(
             f"{e:.2f}",
             ha="center",
             va="bottom",
-            fontsize=6,
+            fontsize=DENSE_ANNOTATION_FONT_SIZE,
             color="#c00",
             zorder=5,
         )
@@ -369,6 +376,8 @@ def main() -> int:
         print("Install matplotlib:  pip install matplotlib", file=sys.stderr)
         return 1
 
+    apply_large_plot_text(plt)
+
     beta0, beta1 = load_calibration(args)
     root = json.loads(args.training_json.read_text())
     csv_by_label = load_csv_by_molecule(args.features_csv)
@@ -491,7 +500,7 @@ def main() -> int:
 
         title = f"1H NMR - {label}"
         ax.set_title(title)
-        ax.legend(loc="upper left", fontsize=8)
+        ax.legend(loc="upper left", bbox_to_anchor=(1, 1), fontsize=LEGEND_FONT_SIZE)
         ax.set_xlim(ppm_hi, ppm_lo)
         if args.lorentzian:
             ax.set_ylim(0.0, 1.05)

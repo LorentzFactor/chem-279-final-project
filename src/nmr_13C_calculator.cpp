@@ -119,7 +119,28 @@ static void print_grouped_delta_summary(const std::vector<double> &delta_ppm,
 }
 
 static void write_results_json(
-    const fs::path &path, const std::string &molecule_label,
+    const fs::path &path, const json &root) {
+  std::ofstream out(path);
+  if (!out) {
+    std::cerr << "Could not write JSON: " << path << '\n';
+    return;
+  }
+  out << root.dump(2) << '\n';
+  std::cout << "Wrote results JSON: " << path << '\n';
+}
+
+static void append_results_jsonl(const fs::path &path, const json &root) {
+  std::ofstream out(path, std::ios::app);
+  if (!out) {
+    std::cerr << "Could not append JSONL: " << path << '\n';
+    return;
+  }
+  out << root.dump() << '\n';
+  std::cout << "Appended results JSONL: " << path << '\n';
+}
+
+static json build_results_json(const std::string &method,
+    const std::string &molecule_label,
     double reference_sigma_avg_ppm, double shift_grouping_tol_ppm,
     const std::vector<size_t> &main_c_atoms,
     const std::vector<double> &main_sigma_d,
@@ -127,6 +148,7 @@ static void write_results_json(
     const std::vector<double> &main_sigma_total,
     const std::vector<double> &delta_ppm) {
   json root;
+  root["method"] = method;
   root["molecule_label"] = molecule_label;
   root["reference_sigma_avg_ppm"] = reference_sigma_avg_ppm;
   root["shift_grouping_tol_ppm"] = shift_grouping_tol_ppm;
@@ -170,25 +192,21 @@ static void write_results_json(
     jgroups.push_back(std::move(jg));
   }
   root["groups"] = std::move(jgroups);
-
-  std::ofstream out(path);
-  if (!out) {
-    std::cerr << "Could not write JSON: " << path << '\n';
-    return;
-  }
-  out << root.dump(2) << '\n';
-  std::cout << "Wrote results JSON: " << path << '\n';
+  return root;
 }
 
 int main(int argc, char **argv) {
-  if (argc != 4 && argc != 5) {
+  if (argc < 4) {
     std::cerr << "Usage: " << argv[0]
               << " [--cndo|--indo|--mindo] path/to/molecule_config.json"
-              << " path/to/reference_config.json [results.json]\n"
+              << " path/to/reference_config.json [results.json]"
+              << " [--jsonl-out path/to/combined_results.jsonl]\n"
               << "Example (from repo root): " << argv[0]
               << " --cndo sample_input/ethane.json sample_input/methane.json\n"
               << "Optional third argument: write machine-readable summary "
                  "(for scripts/plot_nmr_13c_calc_peaks.py).\n"
+              << "Optional --jsonl-out: append one JSON object per run to a "
+                 "combined JSONL file.\n"
               << "JSON: atoms_file_path, num_alpha_electrons, num_beta_electrons;\n"
               << "optional: distance_unit, basis_dir (default \"./basis\"), "
                  "delta_e (optional, unused by σ pipeline), cc_cutoff_bohr "
@@ -206,12 +224,42 @@ int main(int argc, char **argv) {
 
   bool use_indo = false;
   std::string method_flag(argv[1]);
+  std::string method_name;
   if (method_flag == "--cndo") {
     use_indo = false;
+    method_name = "cndo";
   } else if (method_flag == "--indo") {
     use_indo = true;
+    method_name = "indo";
+  } else if (method_flag == "--mindo") {
+    use_indo = true;
+    method_name = "mindo";
   } else {
     std::cerr << "First argument must be --cndo, --indo, or --mindo.\n";
+    return EXIT_FAILURE;
+  }
+
+  fs::path results_json_path;
+  bool write_results_file = false;
+  fs::path results_jsonl_path;
+  bool write_jsonl = false;
+  for (int i = 4; i < argc; ++i) {
+    const std::string arg(argv[i]);
+    if (arg == "--jsonl-out") {
+      if ((i + 1) >= argc) {
+        std::cerr << "Missing path after --jsonl-out.\n";
+        return EXIT_FAILURE;
+      }
+      results_jsonl_path = fs::path(argv[++i]);
+      write_jsonl = true;
+      continue;
+    }
+    if (!write_results_file) {
+      results_json_path = fs::path(arg);
+      write_results_file = true;
+      continue;
+    }
+    std::cerr << "Unrecognized extra argument: " << arg << '\n';
     return EXIT_FAILURE;
   }
 
@@ -352,14 +400,23 @@ int main(int argc, char **argv) {
 
   print_grouped_delta_summary(delta_ppm, main_c_atoms, shift_grouping_tol_ppm);
 
-  if (argc == 5) {
-    const fs::path json_path(argv[4]);
-    if (json_path.has_parent_path()) {
-      fs::create_directories(json_path.parent_path());
+  const json results =
+      build_results_json(method_name, molecule_label, sigma_ref_avg,
+                         shift_grouping_tol_ppm, main_c_atoms, main_sigma_d,
+                         main_sigma_p, main_sigma_total, delta_ppm);
+
+  if (write_results_file) {
+    if (results_json_path.has_parent_path()) {
+      fs::create_directories(results_json_path.parent_path());
     }
-    write_results_json(json_path, molecule_label, sigma_ref_avg,
-                       shift_grouping_tol_ppm, main_c_atoms, main_sigma_d,
-                       main_sigma_p, main_sigma_total, delta_ppm);
+    write_results_json(results_json_path, results);
+  }
+
+  if (write_jsonl) {
+    if (results_jsonl_path.has_parent_path()) {
+      fs::create_directories(results_jsonl_path.parent_path());
+    }
+    append_results_jsonl(results_jsonl_path, results);
   }
 
   return EXIT_SUCCESS;

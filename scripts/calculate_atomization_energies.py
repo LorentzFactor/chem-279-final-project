@@ -18,6 +18,13 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from matplotlib_defaults import (
+    ANNOTATION_FONT_SIZE,
+    FIGURE_TITLE_SIZE,
+    SMALL_ANNOTATION_FONT_SIZE,
+    apply_large_plot_text,
+)
+
 
 METHODS = (
     ("cndo", "CNDO/2"),
@@ -217,7 +224,13 @@ def draw_method_parity(ax: Any, rows: list[dict[str, Any]], method_name: str) ->
 
     ax.scatter(xs, ys, s=42, alpha=0.9, color="#1f77b4", edgecolors="none")
     for label, x_val, y_val in zip(labels, xs, ys):
-        ax.annotate(label, (x_val, y_val), xytext=(4, 4), textcoords="offset points", fontsize=8)
+        ax.annotate(
+            label,
+            (x_val, y_val),
+            xytext=(4, 4),
+            textcoords="offset points",
+            fontsize=SMALL_ANNOTATION_FONT_SIZE,
+        )
 
     errors = [row["abs_error_kj_per_mol"] for row in method_rows]
     mae = sum(errors) / len(errors)
@@ -233,7 +246,7 @@ def draw_method_parity(ax: Any, rows: list[dict[str, Any]], method_name: str) ->
         ha="left",
         va="top",
         transform=ax.transAxes,
-        fontsize=9,
+        fontsize=ANNOTATION_FONT_SIZE,
         bbox={"boxstyle": "round,pad=0.25", "facecolor": "white", "alpha": 0.85, "edgecolor": "#cccccc"},
     )
 
@@ -244,11 +257,13 @@ def write_parity_plot(rows: list[dict[str, Any]], plot_out: Path, dpi: int) -> N
     except ImportError as exc:
         raise RuntimeError("matplotlib is required for parity plot export") from exc
 
+    apply_large_plot_text(plt)
+
     fig, axes = plt.subplots(1, 2, figsize=(11.5, 5.5), constrained_layout=True)
     for ax, (_, method_name) in zip(axes, METHODS):
         draw_method_parity(ax, rows, method_name)
 
-    fig.suptitle("Atomization Energy Parity: CNDO/2 vs INDO", fontsize=13)
+    fig.suptitle("Atomization Energy Parity: CNDO/2 vs INDO", fontsize=FIGURE_TITLE_SIZE)
     plot_out.parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(plot_out, dpi=dpi, bbox_inches="tight")
     plt.close(fig)

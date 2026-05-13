@@ -2,5 +2,13 @@
     "atoms_file_path": "atoms/nitromethane.xyz",
     "output_file_path": "student_output/nitromethane.hdf5",
     "num_alpha_electrons": 12,
-    "num_beta_electrons": 12
+    "num_beta_electrons": 12,
+    "distance_unit": "angstrom",
+    "reference_values": {
+      "atomization_energy": {
+        "value": 2384.6,
+        "units": "kJ/mol",
+        "source": "https://cccbdb.nist.gov/ea2x.asp"
+      }
+    }
 }

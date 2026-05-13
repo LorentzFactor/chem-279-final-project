@@ -8,5 +8,17 @@
     "delta_e": 11.09,
     "distance_unit": "angstrom",
     "shift_calibration_beta0": -2.260714592157854,
-    "shift_calibration_beta1": 10.110160064035133
+        "shift_calibration_beta1": 10.110160064035133,
+        "reference_values": {
+            "takaishi_1974_chemical_shift": {
+                "1": 114.08,
+                "2": 105.7,
+                "3": 95.29
+            },
+            "takaishi_1974_chemical_shift_experimental": {
+                "1": 114.97,
+                "2": 106.13,
+                "3": 94.17
+            }
+        }
 }

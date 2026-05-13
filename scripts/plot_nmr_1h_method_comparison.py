@@ -15,6 +15,8 @@ import sys
 from collections import defaultdict
 from pathlib import Path
 
+from matplotlib_defaults import LEGEND_FONT_SIZE, apply_large_plot_text
+
 
 def ols_1d(xs: list[float], ys: list[float]) -> tuple[float, float]:
     n = len(xs)
@@ -133,6 +135,8 @@ def main() -> int:
         print("Install matplotlib: pip install matplotlib", file=sys.stderr)
         return 1
 
+    apply_large_plot_text(plt)
+
     beta0_cndo, beta1_cndo = fit_from_csv(args.cndo_csv)
     beta0_indo, beta1_indo = fit_from_csv(args.indo_csv)
 
@@ -232,7 +236,7 @@ def main() -> int:
         ax.set_xlabel("delta (ppm)")
         ax.set_xlim(args.ppm_max, args.ppm_min)
         ax.set_ylim(0.0, max_h_count + 0.25)
-        ax.legend(loc="upper left", fontsize=8)
+        ax.legend(loc="upper left", bbox_to_anchor=(1, 1), fontsize=LEGEND_FONT_SIZE)
 
     fig.tight_layout()
     args.out.parent.mkdir(parents=True, exist_ok=True)
