@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Generate parity plots for 1H/13C and CNDO/INDO."""
+"""Generate parity plots for 1H CNDO/INDO."""
 
 from __future__ import annotations
 
@@ -92,25 +92,6 @@ def build_1h_points(training_json: Path, csv_path: Path) -> tuple[list[dict], tu
     return points, (beta0, beta1)
 
 
-def build_13c_points(manifest_path: Path, method_key: str) -> list[dict]:
-    manifest = json.loads(manifest_path.read_text())
-    points: list[dict] = []
-    json_key = f"{method_key}_calc_json"
-    for entry in manifest.get("entries", []):
-        main_cfg = json.loads(Path(entry["main_json"]).read_text())
-        exp = main_cfg.get("experimental_13c_shift_ppm")
-        if not isinstance(exp, list):
-            continue
-        calc = json.loads(Path(entry[json_key]).read_text())
-        carbons = calc.get("carbons") or []
-        if len(carbons) != len(exp):
-            continue
-        label = str(main_cfg.get("label") or calc.get("molecule_label") or Path(entry["main_json"]).stem)
-        for calc_row, exp_val in zip(carbons, exp):
-            points.append({"label": label, "exp": float(exp_val), "pred": float(calc_row["delta_ppm"])})
-    return points
-
-
 def correlation_from_points(points: list[dict]) -> float:
     if not points:
         return float("nan")
@@ -161,7 +142,11 @@ def main() -> int:
     parser.add_argument("training_json", type=Path)
     parser.add_argument("cndo_csv", type=Path)
     parser.add_argument("indo_csv", type=Path)
-    parser.add_argument("carbon_manifest_json", type=Path)
+    parser.add_argument(
+        "carbon_manifest_json",
+        type=Path,
+        help="Unused for this figure; retained for CLI compatibility.",
+    )
     parser.add_argument("--dpi", type=int, default=150)
     parser.add_argument(
         "--out",
@@ -180,53 +165,35 @@ def main() -> int:
 
     h1_cndo, h1_cndo_fit = build_1h_points(args.training_json, args.cndo_csv)
     h1_indo, h1_indo_fit = build_1h_points(args.training_json, args.indo_csv)
-    c13_cndo = build_13c_points(args.carbon_manifest_json, "cndo")
-    c13_indo = build_13c_points(args.carbon_manifest_json, "indo")
 
     molecule_labels = []
-    for points in (h1_cndo, h1_indo, c13_cndo, c13_indo):
+    for points in (h1_cndo, h1_indo):
         for pt in points:
             if pt["label"] not in molecule_labels:
                 molecule_labels.append(pt["label"])
     cmap = plt.get_cmap("tab10")
     palette = {label: cmap(i % 10) for i, label in enumerate(molecule_labels)}
 
-    fig, axes = plt.subplots(2, 2, figsize=(11.5, 9.0))
+    fig, axes = plt.subplots(1, 2, figsize=(11.5, 4.8))
     draw_parity(
-        axes[0][0],
+        axes[0],
         h1_cndo,
         title=f"1H CNDO parity (r={correlation_from_points(h1_cndo):.3f})",
         palette=palette,
     )
     draw_parity(
-        axes[0][1],
+        axes[1],
         h1_indo,
         title=f"1H INDO parity (r={correlation_from_points(h1_indo):.3f})",
-        palette=palette,
-    )
-    draw_parity(
-        axes[1][0],
-        c13_cndo,
-        title=f"13C CNDO parity (r={correlation_from_points(c13_cndo):.3f})",
-        palette=palette,
-    )
-    draw_parity(
-        axes[1][1],
-        c13_indo,
-        title=f"13C INDO parity (r={correlation_from_points(c13_indo):.3f})",
         palette=palette,
     )
 
     h1_cndo_r = correlation_from_points(h1_cndo)
     h1_indo_r = correlation_from_points(h1_indo)
-    c13_cndo_r = correlation_from_points(c13_cndo)
-    c13_indo_r = correlation_from_points(c13_indo)
     fig.suptitle(
         "NMR Parity Plots\n"
         f"1H CNDO r={h1_cndo_r:.3f}, "
-        f"1H INDO r={h1_indo_r:.3f}, "
-        f"13C CNDO r={c13_cndo_r:.3f}, "
-        f"13C INDO r={c13_indo_r:.3f}",
+        f"1H INDO r={h1_indo_r:.3f}",
         fontsize=FIGURE_TITLE_SIZE,
     )
     fig.tight_layout(rect=(0.0, 0.0, 1.0, 0.97))
@@ -234,8 +201,6 @@ def main() -> int:
     fig.savefig(args.out, dpi=args.dpi, bbox_inches="tight")
     print(f"1H CNDO correlation: {h1_cndo_r:.6f}")
     print(f"1H INDO correlation: {h1_indo_r:.6f}")
-    print(f"13C CNDO correlation: {c13_cndo_r:.6f}")
-    print(f"13C INDO correlation: {c13_indo_r:.6f}")
     print(f"Wrote {args.out.resolve()}")
     return 0
 

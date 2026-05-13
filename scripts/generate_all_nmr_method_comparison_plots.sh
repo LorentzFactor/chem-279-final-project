@@ -11,6 +11,19 @@ H_EXPORT="$BUILD_DIR/nmr_1h_training_export"
 C_CALC="$BUILD_DIR/nmr_13c_calc"
 OVERVIEW_PLOT="$ROOT/scripts/plot_nmr_method_comparison_overview.py"
 PARITY_PLOT="$ROOT/scripts/plot_nmr_method_parity.py"
+if [[ -n "${PYTHON_BIN:-}" ]]; then
+  :
+elif [[ -x "$ROOT/.venv/bin/python" ]]; then
+  PYTHON_BIN="$ROOT/.venv/bin/python"
+else
+  PYTHON_BIN="$(command -v python3 || true)"
+fi
+
+if [[ -z "$PYTHON_BIN" || ! -x "$PYTHON_BIN" ]]; then
+  echo "Missing Python interpreter. Set PYTHON_BIN or install python3." >&2
+  exit 1
+fi
+
 TRAIN_JSON="${1:-$ROOT/sample_input/nmr_1h_training_export.json}"
 REF_JSON="$ROOT/sample_input/methane.json"
 C_CSV="$ROOT/student_output/nmr_1h_training_features_cndo.csv"
@@ -38,7 +51,7 @@ rewrite_output_csv() {
   local src_json="$1"
   local dst_json="$2"
   local output_csv="$3"
-  python3 - "$src_json" "$dst_json" "$output_csv" <<'PY'
+  "$PYTHON_BIN" - "$src_json" "$dst_json" "$output_csv" <<'PY'
 import json
 import sys
 
@@ -77,7 +90,7 @@ while IFS= read -r main_json; do
   "$C_CALC" --cndo "$main_json" "$REF_JSON" "$cndo_json"
   "$C_CALC" --indo "$main_json" "$REF_JSON" "$indo_json"
   entries_json="$entries_json"$'\n'"$main_json|$cndo_json|$indo_json"
-done < <(python3 - "$ROOT/sample_input" <<'PY'
+done < <("$PYTHON_BIN" - "$ROOT/sample_input" <<'PY'
 import json
 from pathlib import Path
 import sys
@@ -93,7 +106,7 @@ for json_file in sorted(sample_dir.glob("*.json")):
 PY
 )
 
-ENTRIES_JSON="$entries_json" python3 - "$CARBON_MANIFEST" <<'PY'
+ENTRIES_JSON="$entries_json" "$PYTHON_BIN" - "$CARBON_MANIFEST" <<'PY'
 import json
 import os
 import sys
@@ -119,9 +132,9 @@ with open(sys.argv[1], "w", encoding="utf-8") as handle:
 PY
 
 echo "=== Overview plot ==="
-ENTRIES_JSON="$entries_json" python3 "$OVERVIEW_PLOT" "$TRAIN_JSON" "$C_CSV" "$I_CSV" "$CARBON_MANIFEST" --out "$OUT_PNG"
+ENTRIES_JSON="$entries_json" "$PYTHON_BIN" "$OVERVIEW_PLOT" "$TRAIN_JSON" "$C_CSV" "$I_CSV" "$CARBON_MANIFEST" --out "$OUT_PNG"
 
 echo "=== Parity plots ==="
-python3 "$PARITY_PLOT" "$TRAIN_JSON" "$C_CSV" "$I_CSV" "$CARBON_MANIFEST" --out "$PARITY_OUT"
+"$PYTHON_BIN" "$PARITY_PLOT" "$TRAIN_JSON" "$C_CSV" "$I_CSV" "$CARBON_MANIFEST" --out "$PARITY_OUT"
 
 echo "Done. Wrote $OUT_PNG and $PARITY_OUT"
