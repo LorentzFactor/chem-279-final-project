@@ -296,7 +296,6 @@ def make_parity_plot_grid(
     """
     try:
         import matplotlib.pyplot as plt
-        from matplotlib.lines import Line2D
     except ImportError as exc:
         raise RuntimeError("matplotlib is required for parity plotting") from exc
 
@@ -305,12 +304,20 @@ def make_parity_plot_grid(
     if len(plot_data) != 4:
         raise ValueError("Grid plot requires exactly 4 plots")
 
-    fig, axes = plt.subplots(2, 2, figsize=(16, 14))
+    fig, axes = plt.subplots(2, 2, figsize=(8, 7))
     axes_flat = axes.flatten()
 
     all_metrics: dict[str, dict[str, float]] = {}
-    all_label_sets: list[list[str]] = []
     plot_names = ["takaishi_vs_experimental", "cndo_vs_experimental", "cndo_vs_takaishi", "indo_fit_vs_experimental"]
+
+    # Build global palette so colors are consistent across all subplots
+    all_unique_labels: list[str] = []
+    for _, _, labels, _, _, _ in plot_data:
+        for label in labels:
+            if label not in all_unique_labels:
+                all_unique_labels.append(label)
+    cmap = plt.get_cmap("tab10")
+    global_palette = {label: cmap(i % 10) for i, label in enumerate(all_unique_labels)}
 
     for idx, (x_values, y_values, labels, title, x_label, y_label) in enumerate(plot_data):
         if not x_values or len(x_values) != len(y_values):
@@ -322,17 +329,13 @@ def make_parity_plot_grid(
         for label in labels:
             if label not in unique_labels:
                 unique_labels.append(label)
-        all_label_sets.append(unique_labels)
-
-        cmap = plt.get_cmap("tab10")
-        palette = {label: cmap(i % 10) for i, label in enumerate(unique_labels)}
 
         for label in unique_labels:
             xs = [x for x, l in zip(x_values, labels) if l == label]
             ys = [y for y, l in zip(y_values, labels) if l == label]
             if len(xs) >= 2:
-                ax.plot(xs, ys, linestyle="--", linewidth=0.8, alpha=0.4, color=palette[label], zorder=1)
-            ax.scatter(xs, ys, s=50, alpha=0.75, label=label, color=palette[label], edgecolors="black", linewidth=0.4, zorder=2)
+                ax.plot(xs, ys, linestyle="--", linewidth=0.8, alpha=0.4, color=global_palette[label], zorder=1)
+            ax.scatter(xs, ys, s=50, alpha=0.75, label=label, color=global_palette[label], edgecolors="black", linewidth=0.4, zorder=2)
 
         lo = min(min(x_values), min(y_values))
         hi = max(max(x_values), max(y_values))
@@ -352,7 +355,7 @@ def make_parity_plot_grid(
         r_val = correlation(x_values, y_values)
         rmse, mae = compute_rmse_mae(x_values, y_values)
 
-        ax.set_title(title, fontsize=13, fontweight="bold", pad=10)
+        ax.set_title(title, fontsize=10, fontweight="bold", pad=4)
         metrics_text = f"r = {r_val:.3f}\nRMSE = {rmse:.3f}\nMAE = {mae:.3f}"
         ax.text(
             0.04,
@@ -361,52 +364,28 @@ def make_parity_plot_grid(
             transform=ax.transAxes,
             va="top",
             ha="left",
-            fontsize=10,
-            bbox={"boxstyle": "round,pad=0.6", "facecolor": "white", "alpha": 0.9, "edgecolor": "gray", "linewidth": 0.8},
+            fontsize=9,
+            bbox={"boxstyle": "round,pad=0.3", "facecolor": "white", "alpha": 0.9, "edgecolor": "gray", "linewidth": 0.5},
         )
         ax.set_xlabel(x_label, fontsize=11, fontweight="normal")
         ax.set_ylabel(y_label, fontsize=11, fontweight="normal")
-        ax.tick_params(labelsize=9)
+        ax.tick_params(labelsize=7)
 
         all_metrics[plot_names[idx]] = {"r": r_val, "rmse": rmse, "mae": mae, "n": float(len(x_values))}
 
-    # Create shared legend with all unique molecules
-    all_unique_labels: list[str] = []
-    for label_set in all_label_sets:
-        for label in label_set:
-            if label not in all_unique_labels:
-                all_unique_labels.append(label)
+    from matplotlib.lines import Line2D
+    legend_handles = [
+        Line2D([0], [0], marker="o", color="w", markerfacecolor=global_palette[label],
+               markersize=7, markeredgecolor="black", markeredgewidth=0.4, label=label)
+        for label in all_unique_labels
+    ]
+    fig.legend(handles=legend_handles, loc="center left", ncol=1,
+               fontsize=13, frameon=True, fancybox=False, edgecolor="gray",
+               bbox_to_anchor=(0.9, 0.5))
 
-    cmap = plt.get_cmap("tab10")
-    handles: list[Line2D] = []
-    legend_labels: list[str] = []
-
-    for i, label in enumerate(all_unique_labels):
-        color = cmap(i % 10)
-        handles.append(Line2D([0], [0], marker="o", color="w", markerfacecolor=color, markersize=7, markeredgecolor="black", markeredgewidth=0.5, label=label))
-        legend_labels.append(label)
-
-    handles.append(Line2D([0], [0], color="black", linestyle="--", linewidth=1.4, alpha=0.7, label="y = x"))
-    legend_labels.append("y = x")
-    handles.append(
-        Line2D([0], [0], color="gray", linestyle="--", linewidth=0.8, alpha=0.4, label="Peak connection")
-    )
-    legend_labels.append("Peak connection")
-
-    fig.legend(
-        handles,
-        legend_labels,
-        loc="center left",
-        ncol=1,
-        fontsize=10,
-        bbox_to_anchor=(1.02, 0.5),
-        frameon=True,
-        fancybox=True,
-        shadow=True,
-    )
-
-    fig.suptitle("13C NMR Parity Analysis: Takaishi Reference vs Computational Methods", fontsize=14, fontweight="bold", y=0.995)
-    fig.tight_layout(rect=[0, 0, 0.92, 0.98])
+    fig.suptitle("13C NMR Parity Analysis\nTakaishi Reference vs Computational Methods", fontsize=16, fontweight="bold", y=1.0)
+    fig.tight_layout(rect=[0, 0, 1.0, 0.98], h_pad=0.4, w_pad=-2, pad=0)
+    fig.subplots_adjust(wspace=-0.3)
     out_path.parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(out_path, dpi=300, bbox_inches="tight", facecolor="white", edgecolor="none")
     plt.close(fig)
@@ -615,7 +594,7 @@ def main() -> int:
                 tak_vs_exp_x,
                 tak_vs_exp_y,
                 tak_vs_exp_labels,
-                "13C NMR Takaishi vs Experimental",
+                "Takaishi vs Experimental",
                 "Experimental (ppm)",
                 "Takaishi (ppm)",
             ),
@@ -623,7 +602,7 @@ def main() -> int:
                 cndo_vs_exp_x,
                 cndo_vs_exp_y,
                 cndo_vs_exp_labels,
-                "13C NMR CNDO/2 Predictions vs Experimental",
+                "CNDO/2 Predictions vs Experimental",
                 "Experimental (ppm)",
                 "CNDO/2 Predicted (ppm)",
             ),
@@ -631,7 +610,7 @@ def main() -> int:
                 cndo_vs_tak_x,
                 cndo_vs_tak_y,
                 cndo_vs_tak_labels,
-                "13C NMR CNDO/2 Predictions vs Takaishi",
+                "CNDO/2 Predictions vs Takaishi",
                 "Takaishi (ppm)",
                 "CNDO/2 Predicted (ppm)",
             ),
@@ -639,7 +618,7 @@ def main() -> int:
                 indo_vs_exp_y,
                 indo_vs_exp_y_fit,
                 indo_vs_exp_labels,
-                "13C NMR INDO (Linear Fit) vs Experimental",
+                "INDO (Linear Fit) vs Experimental",
                 "Experimental (ppm)",
                 "INDO Fitted (ppm)",
             ),
