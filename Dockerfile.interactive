@@ -1,7 +1,0 @@
-# Local interactive dev image: course base + plotting dependencies for scripts/*.py
-FROM ghcr.io/berkeley-chem-179-279/dev:latest
-
-USER root
-COPY python/requirements-viz.txt /tmp/requirements-viz.txt
-RUN python3 -m pip install --no-cache-dir -r /tmp/requirements-viz.txt \
-    && rm -f /tmp/requirements-viz.txt
