@@ -1,1 +1,1 @@
-
+To generate the plots from the report, enter the docker dev in vs code, and run `./run.sh` in the terminal.
