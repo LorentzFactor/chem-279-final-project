@@ -16,6 +16,8 @@ namespace system_lib {
         // Add s orbital at location of the atom
         atomic_orbitals_ = { s_basis.toFunction(position, {0,0,0}) };
         orbital_names_ = { "1s" };
+
+        F0 = calculate_gamma(atomic_orbitals_.at(0), atomic_orbitals_.at(0));
     }
 
     Atom::Atom(std::array<double,3> position, short atomic_number, GaussianTemplate s_basis, GaussianTemplate p_basis)
@@ -42,11 +44,29 @@ namespace system_lib {
             p_label += (idim == 0) ? "x" : (idim == 1) ? "y" : "z";
             orbital_names_.emplace_back(p_label);
         }
+
+        F0 = calculate_gamma(atomic_orbitals_.at(0), atomic_orbitals_.at(0));
     }
 
     /* Convert an atomic number to its symbol */
     const std::string& Atom::get_number_symbol(const short& atomic_number) {
-        return symbol_list_[atomic_number-1];
+        if (atomic_number < 1 ||
+            atomic_number > static_cast<short>(symbol_list_.size())) {
+            throw std::runtime_error("Atomic number out of supported range: " +
+                                     std::to_string(atomic_number));
+        }
+        return symbol_list_[static_cast<size_t>(atomic_number - 1)];
+    }
+
+    /* Convert an atomic symbol to its number */
+    const short Atom::get_symbol_number(const std::string& atomic_symbol) {
+        auto it = std::find(symbol_list_.begin(), symbol_list_.end(), atomic_symbol);
+        if (it != symbol_list_.end()) {
+            return std::distance(symbol_list_.begin(), it) + 1;
+        }
+        else {
+            throw std::runtime_error("Atomic symbol not found: " + atomic_symbol);
+        }
     }
 
     double Atom::get_atom_constant(const std::string& const_name) const {
@@ -61,6 +81,21 @@ namespace system_lib {
         }
         else if (const_name == "Z_A") {
             return Z_A.at(get_symbol());
+        }
+        else if (const_name == "F0") { // i.e. gamma_AA
+            return F0;
+        }
+        else if (const_name == "F2") {
+            return F2_.at(get_symbol());
+        }
+        else if (const_name == "G1") {
+            return G1_.at(get_symbol());
+        }
+        else if (const_name == "sINDO_U_MU_MU") {
+            return sINDO_U_MU_MU_.at(get_symbol());
+        }
+        else if (const_name == "pINDO_U_MU_MU") {
+            return pINDO_U_MU_MU_.at(get_symbol());
         }
         else {
             throw std::runtime_error("Constant name not found");

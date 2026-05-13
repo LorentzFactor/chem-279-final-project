@@ -1,0 +1,27 @@
+{
+    "atoms_file_path" : "atoms/n-butane_PCS2.xyz",
+    "output_file_path" : "student_output/n_butane.hdf5",
+    "num_alpha_electrons" :13,
+    "num_beta_electrons" : 13,
+    "label": "n-butane",
+    "experimental_13c_shift_ppm": [13.4, 25.0, 25.0, 13.4],
+    "delta_e": 11.09,
+    "distance_unit": "angstrom",
+    "shift_calibration_beta0": -2.260714592157854,
+    "shift_calibration_beta1": 10.110160064035133,
+    "reference_values": {
+      "takaishi_1974_chemical_shift": {
+        "1": 114.24,
+        "2": 103.76
+      },
+      "takaishi_1974_chemical_shift_experimental": {
+        "1": 115.48,
+        "2": 103.68
+      },
+      "atomization_energy": {
+        "value": 5103.7,
+        "units": "kJ/mol",
+        "source": "https://cccbdb.nist.gov/ea2x.asp"
+      }
+    }
+}

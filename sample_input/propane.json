@@ -1,0 +1,21 @@
+{
+    "atoms_file_path" : "atoms/propane.xyz",
+    "output_file_path" : "student_output/propane.hdf5",
+    "num_alpha_electrons" : 10,
+    "num_beta_electrons" : 10,
+    "label": "propane",
+    "experimental_13c_shift_ppm": [16.3, 15.8, 15.8],
+    "delta_e": 10.98,
+    "shift_calibration_beta0": -2.260714592157854,
+        "shift_calibration_beta1": 10.110160064035133,
+        "reference_values": {
+            "takaishi_1974_chemical_shift": {
+                "1": 112.18,
+                "2": 111.69
+            },
+            "takaishi_1974_chemical_shift_experimental": {
+                "1": 113.1,
+                "2": 112.62
+            }
+        }
+}

@@ -1,0 +1,2 @@
+# Python tooling inside the course dev container (see Dockerfile.interactive).
+matplotlib>=3.7

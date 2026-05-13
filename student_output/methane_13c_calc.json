@@ -1,0 +1,28 @@
+{
+  "carbons": [
+    {
+      "atom_index": 0,
+      "c_rank": 0,
+      "delta_ppm": 0.025346491895433587,
+      "sigma_d": 68.16316046738586,
+      "sigma_p": -185.47999052141418,
+      "sigma_total": -117.31683005402832
+    }
+  ],
+  "groups": [
+    {
+      "atom_indices": [
+        0
+      ],
+      "carbon_slot_indices": [
+        0
+      ],
+      "delta_avg_ppm": 0.025346491895433587,
+      "n_carbons": 1,
+      "peak_index": 1
+    }
+  ],
+  "molecule_label": "methane",
+  "reference_sigma_avg_ppm": -117.29148356213288,
+  "shift_grouping_tol_ppm": 0.2
+}

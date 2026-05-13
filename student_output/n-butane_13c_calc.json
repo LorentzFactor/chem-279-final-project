@@ -1,0 +1,67 @@
+{
+  "carbons": [
+    {
+      "atom_index": 0,
+      "c_rank": 0,
+      "delta_ppm": 15.580878835144375,
+      "sigma_d": 68.1026972099238,
+      "sigma_p": -200.98276419702088,
+      "sigma_total": -132.88006698709708
+    },
+    {
+      "atom_index": 1,
+      "c_rank": 1,
+      "delta_ppm": 25.781861529495274,
+      "sigma_d": 68.04748773768594,
+      "sigma_p": -211.12853741913392,
+      "sigma_total": -143.08104968144798
+    },
+    {
+      "atom_index": 2,
+      "c_rank": 2,
+      "delta_ppm": 25.784108599889606,
+      "sigma_d": 68.04750038314657,
+      "sigma_p": -211.13079713498888,
+      "sigma_total": -143.0832967518423
+    },
+    {
+      "atom_index": 3,
+      "c_rank": 3,
+      "delta_ppm": 15.585399751974336,
+      "sigma_d": 68.10270508751063,
+      "sigma_p": -200.98729299143767,
+      "sigma_total": -132.88458790392704
+    }
+  ],
+  "groups": [
+    {
+      "atom_indices": [
+        0,
+        3
+      ],
+      "carbon_slot_indices": [
+        0,
+        3
+      ],
+      "delta_avg_ppm": 15.583139293559356,
+      "n_carbons": 2,
+      "peak_index": 1
+    },
+    {
+      "atom_indices": [
+        1,
+        2
+      ],
+      "carbon_slot_indices": [
+        1,
+        2
+      ],
+      "delta_avg_ppm": 25.78298506469244,
+      "n_carbons": 2,
+      "peak_index": 2
+    }
+  ],
+  "molecule_label": "n-butane",
+  "reference_sigma_avg_ppm": -117.2991881519527,
+  "shift_grouping_tol_ppm": 0.2
+}

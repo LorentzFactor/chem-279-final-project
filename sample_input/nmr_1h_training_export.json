@@ -1,0 +1,58 @@
+{
+  "output_csv": "student_output/nmr_1h_training_features_indo.csv",
+  "basis_dir": "./basis",
+  "field_dir": 2,
+  "epsilon": 1.0e-5,
+  "include_dia": true,
+  "experimental_reference": "delta_exp_ppm are approximate literature 1H shifts vs TMS in CDCl3, ordered by increasing atom index (same order as collect_hydrogen_atom_indices). Refine from your spectra if needed.",
+  "molecules": [
+    {
+      "label": "methane",
+      "atoms_file_path": "atoms/methane.xyz",
+      "num_alpha_electrons": 4,
+      "num_beta_electrons": 4,
+      "distance_unit": "bohr",
+      "experimental_shift_ppm": [0.23, 0.23, 0.23, 0.23]
+    },
+    {
+      "label": "ethane",
+      "atoms_file_path": "atoms/ethane.xyz",
+      "num_alpha_electrons": 7,
+      "num_beta_electrons": 7,
+      "distance_unit": "bohr",
+      "experimental_shift_ppm": [0.86, 0.86, 0.86, 0.86, 0.86, 0.86]
+    },
+    {
+      "label": "propane",
+      "atoms_file_path": "atoms/propane.xyz",
+      "num_alpha_electrons": 10,
+      "num_beta_electrons": 10,
+      "distance_unit": "bohr",
+      "experimental_shift_ppm": [1.33, 1.33, 0.91, 0.91, 0.91, 0.91, 0.91, 0.91]
+    },
+    {
+      "label": "isobutane",
+      "atoms_file_path": "atoms/isobutane_PCS2.xyz",
+      "num_alpha_electrons": 13,
+      "num_beta_electrons": 13,
+      "distance_unit": "angstrom",
+      "experimental_shift_ppm": [0.86, 0.86, 0.86, 0.86, 0.86, 0.86, 1.65, 0.86, 0.86, 0.86]
+    },
+    {
+      "label": "n-butane",
+      "atoms_file_path": "atoms/n-butane_PCS2.xyz",
+      "num_alpha_electrons": 13,
+      "num_beta_electrons": 13,
+      "distance_unit": "angstrom",
+      "experimental_shift_ppm": [0.91, 0.91, 0.91, 0.91, 0.91, 0.91, 1.31, 1.31, 1.31, 1.31]
+    },
+    {
+      "label": "n-pentane",
+      "atoms_file_path": "atoms/n-pentane_PCS2.xyz",
+      "num_alpha_electrons": 16,
+      "num_beta_electrons": 16,
+      "distance_unit": "angstrom",
+      "experimental_shift_ppm": [0.88, 1.29, 1.29, 0.88, 0.88, 1.29, 1.29, 1.29, 1.29, 0.88, 0.88, 0.88]
+    }
+  ]
+}

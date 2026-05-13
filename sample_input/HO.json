@@ -1,0 +1,8 @@
+{
+    "atoms_file_path" : "atoms/HO.xyz",
+    "output_file_path" : "student_output/HO.hdf5",
+    "num_alpha_electrons" : 4, 
+    "num_beta_electrons" : 3,
+    "shift_calibration_beta0": -2.260714592157854,
+    "shift_calibration_beta1": 10.110160064035133
+}

@@ -1,169 +1,342 @@
-#pragma once
+#ifndef SYSTEM_LIB_H
+#define SYSTEM_LIB_H
 
 #include <filesystem>
-#include<iostream>
 #include <fstream>
+#include <iostream>
 #include <memory>
 
-#include <string>
-#include <vector>
-#include <array>
-#include <unordered_map>
-#include <armadillo>
-#include <nlohmann/json.hpp> 
 #include "gaussian_lib/gaussian_lib.h"
+#include <armadillo>
+#include <array>
+#include <cstdint>
+#include <nlohmann/json.hpp>
+#include <stdexcept>
+#include <string>
+#include <unordered_map>
+#include <vector>
 
 using namespace gaussian_lib;
 
+// Custom type names for clarity
+using RealMat = arma::mat;
+using RealVec = arma::vec;
+using RealRowVec = arma::rowvec;
+using RealCube = arma::cube;
+
+using ComplexMat = arma::cx_mat;
+using ComplexVec = arma::cx_vec;
+using ComplexRowVec = arma::cx_rowvec;
+using ComplexCube = arma::cx_cube;
+
 namespace system_lib {
-    struct Atom {
-        private:
-            std::array<double,3> position_; // Position of atom
-            short atomic_number_; // Its atomic number
-            std::string atomic_symbol_; // Atomic symbol
-            inline static const std::array<std::string, 9> symbol_list_ { // Ordered list of atomic symbols
-                "H", "He", "Li", "Be", "B", "C", "N", "O", "F"
-            };
-            std::vector<GaussianContracted> atomic_orbitals_; // A vector of the atom's orbitals
-            std::vector<std::string> orbital_names_; // A vector of the same length as orbitals with their names
-            inline static const std::unordered_map<std::string, double> sI_plus_A_ {
-                {"H", 7.176},
-                {"C", 14.051},
-                {"N", 19.361},
-                {"O", 25.390},
-                {"F", 32.272},
-            };
-            inline static const std::unordered_map<std::string, double> pI_plus_A_ {
-                {"C", 5.572},
-                {"N", 7.275},
-                {"O", 9.111},
-                {"F", 11.080}
-            };
-            inline static const std::unordered_map<std::string, double> neg_beta_ {
-                {"H", -9},
-                {"C", -21},
-                {"N", -25},
-                {"O", -31},
-                {"F", -39},
-            };
-            inline static const std::unordered_map<std::string, double> Z_A {
-                {"H", 1},
-                {"C", 4},
-                {"N", 5},
-                {"O", 6},
-                {"F", 7},
-            };
-        public:
-            Atom(std::array<double,3> position, short atomic_number, GaussianTemplate s_basis);
-            Atom(std::array<double,3> position, short atomic_number, GaussianTemplate s_basis, GaussianTemplate p_basis);
-            static const std::string& get_number_symbol(const short& atomic_number);
-            double get_atom_constant(const std::string& const_name) const;
-            std::string get_symbol() const {return atomic_symbol_;};
-            const std::vector<GaussianContracted>& get_atomic_orbitals() const {return atomic_orbitals_;};
-            int num_orbitals() const {return atomic_orbitals_.size();};
-            const std::vector<std::string>& get_orbital_names() const {return orbital_names_;};
-            const std::array<double,3>& get_position() const {return position_;};
-            const short& get_atomic_number() const {return atomic_number_;};
+
+// Units for distance in input files
+enum DistanceUnits { BOHR, ANGSTROM };
+
+struct Atom {
+private:
+  std::array<double, 3> position_; // Position of atom
+  short atomic_number_;            // Its atomic number
+  std::string atomic_symbol_;      // Atomic symbol
+  inline static const std::array<std::string, 14> symbol_list_{
+      "H", "He", "Li", "Be", "B",  "C",  "N",
+      "O", "F",  "Ne", "Na", "Mg", "Al", "Si"};
+  std::vector<GaussianContracted>
+      atomic_orbitals_;                    // A vector of the atom's orbitals
+  std::vector<std::string> orbital_names_; // A vector of the same length as
+                                           // orbitals with their names
+  /** CNDO/2-style parameters (eV); Si from third-row extension (literature). */
+  inline static const std::unordered_map<std::string, double> sI_plus_A_{
+      {"H", 7.176},  {"C", 14.051}, {"N", 19.361},
+      {"O", 25.390}, {"F", 32.272}, {"Si", 10.06},
+  };
+  inline static const std::unordered_map<std::string, double> pI_plus_A_{
+      {"C", 5.572}, {"N", 7.275}, {"O", 9.111}, {"F", 11.080}, {"Si", 5.57},
+  };
+  inline static const std::unordered_map<std::string, double> neg_beta_{
+      {"H", -9}, {"C", -21}, {"N", -25}, {"O", -31}, {"F", -39}, {"Si", -8},
+  };
+  inline static const std::unordered_map<std::string, double> Z_A{
+      {"H", 1}, {"C", 4}, {"N", 5}, {"O", 6}, {"F", 7}, {"Si", 4},
+  };
+  inline static const std::unordered_map<std::string, double> G1_{
+        {"Li", 2.5038}, {"Be", 3.8286}, {"B", 5.4223},
+        {"C", 7.2847}, {"N", 9.4158}, {"O", 11.8160},
+        {"F", 14.4848},
+    };
+    inline static const std::unordered_map<std::string, double> F2_{
+        {"Li", 1.3569}, {"Be", 2.4252}, {"B", 3.5486},
+        {"C", 4.7272}, {"N", 5.9608}, {"O", 7.2495},
+        {"F", 8.5934},
+    };
+    inline static const std::unordered_map<std::string, double> sINDO_U_MU_MU_{
+          {"H", -13.6000}, {"C", -67.2257}, {"N", -100.5924},
+          {"O", -140.1901}, {"F", -186.0191},
+    };
+    inline static const std::unordered_map<std::string, double> pINDO_U_MU_MU_{
+        {"C", -58.7865}, {"N", -89.6682},
+        {"O", -126.8051}, {"F", -170.1824},
     };
 
-    struct System {
-        private:
-            arma::mat S_;
-        protected:
-            std::vector<Atom> atoms_;
-            size_t num_orbitals_;
-            std::vector<std::array<size_t, 2>> atom_orbital_idxs;
-            static std::vector<Atom> atoms_from_files_(std::string atoms_filepath, std::string basis_directory);
-        public:
-            System(const std::vector<Atom>& atoms);
-            arma::mat compute_overlap_matrix() const;
-            size_t num_orbitals() const;
-            size_t num_atoms() const;
-            virtual double compute_electronic_energy() = 0;
-            double compute_nuclear_energy() const;
-            double compute_total_energy();
-            const Atom& get_atom(size_t atom_idx) const {return atoms_.at(atom_idx);};
-            const std::vector<std::array<size_t, 2>>& get_atom_orbital_idxs() const {return atom_orbital_idxs;};
-    };
+  double F0;
 
-    struct CNDO2System : public System {
-        private:
-            // F matrix + energy states
-            arma::mat p_alpha_;
-            arma::mat p_beta_;
-            arma::mat f_alpha_;
-            arma::mat f_beta_;
-            arma::mat mos_alpha_;
-            arma::mat mos_beta_;
-            arma::vec E_alpha_;
-            arma::vec E_beta_;
+public:
+  Atom(std::array<double, 3> position, short atomic_number,
+       GaussianTemplate s_basis);
+  Atom(std::array<double, 3> position, short atomic_number,
+       GaussianTemplate s_basis, GaussianTemplate p_basis);
+  static const std::string &get_number_symbol(const short &atomic_number);
+  static const short get_symbol_number(const std::string &atomic_symbol);
+  double get_atom_constant(const std::string &const_name) const;
+  std::string get_symbol() const { return atomic_symbol_; };
+  const std::vector<GaussianContracted> &get_atomic_orbitals() const {
+    return atomic_orbitals_;
+  };
+  const GaussianContracted &get_atomic_orbital(size_t orbital_idx) const {
+    return atomic_orbitals_.at(orbital_idx);
+  };
+  int num_orbitals() const { return atomic_orbitals_.size(); };
+  const std::vector<std::string> &get_orbital_names() const {
+    return orbital_names_;
+  };
+  const std::array<double, 3> &get_position() const { return position_; };
+  const short &get_atomic_number() const { return atomic_number_; };
+};
 
-            // Internal constants
-            arma::mat gamma_;
-            arma::mat gamma_reduced_;
-            arma::mat beta_;
+struct System {
+private:
+  // Lazy-cached AO overlap (recomputed when empty)
+  mutable RealMat S_;
 
-            // Electron counts
-            double p_;
-            double q_;
+protected:
+  std::vector<Atom> atoms_;
+  size_t num_orbitals_;
+  std::vector<std::array<size_t, 2>> atom_orbital_idxs;
+  static std::vector<Atom>
+  atoms_from_files_(std::string atoms_filepath, std::string basis_directory,
+                    DistanceUnits distance_units = DistanceUnits::BOHR);
 
-            // Gradients
-            arma::cube S_uv_R_;
+public:
+  System(const std::vector<Atom> &atoms);
+  RealMat compute_overlap_matrix() const;
+  size_t num_orbitals() const;
+  size_t num_atoms() const;
+  virtual double compute_electronic_energy() = 0;
+  double compute_nuclear_energy() const;
+  double compute_total_energy();
+  const Atom &get_atom(size_t atom_idx) const { return atoms_.at(atom_idx); };
+  const std::vector<std::array<size_t, 2>> &get_atom_orbital_idxs() const {
+    return atom_orbital_idxs;
+  };
+};
 
-        protected:
-            std::pair<arma::mat,arma::mat> compute_cndo_f_matrix_internal(
-                const arma::mat& p_alpha,
-                const arma::mat& p_beta
-            );
+struct CNDO2RealIntegrals {
+  RealMat S_;
+  RealMat gamma_;
+  RealMat gamma_reduced_;
+  RealMat beta_;
+};
 
-        public:
-            CNDO2System(const std::vector<Atom>& atoms, int p, int q);
-            static CNDO2System from_files(std::string atoms_filepath, std::string basis_directory, int p, int q);
-            
-            void set_p(const arma::mat& new_p_alpha, const arma::mat& new_p_beta);
-            const arma::mat& get_p_alpha() const {return p_alpha_;};
-            const arma::mat& get_p_beta() const {return p_beta_;};
+// Shared functions that both CNDO2 classes can use
 
-            void set_f(const arma::mat& new_f_alpha, const arma::mat& new_f_beta);
-            const arma::mat& get_f_alpha() const {return f_alpha_;};
-            const arma::mat& get_f_beta() const {return f_beta_;};
+RealMat compute_gamma_matrix(RealMat &gamma, System &sys,
+                             const std::vector<Atom> &atoms_);
+RealMat compute_reduced_gamma_matrix(RealMat &gamma_reduced, System &sys);
+RealMat compute_beta_matrix(RealMat &beta, System &sys,
+                            const std::vector<Atom> &atoms);
+double get_integral(const GaussianContracted &u, const GaussianContracted &v,
+                    const GaussianContracted &l, const GaussianContracted &s,
+                    const Atom &atom);
 
-            void set_nelectrons(int p, int q) {p_ = (double) p; q_ = (double) q;};
-            int get_nalpha() const {return (int) p_;};
-            int get_nbeta() const {return (int) q_;};
+// Shared Fock builder used by both real and complex CNDO2 systems.
+template <class MatT, class SystemT>
+std::pair<MatT, MatT> build_cndo2_fock(SystemT &sys, const MatT &p_alpha,
+                                       const MatT &p_beta);
 
-            const arma::mat& get_MOs_alpha() const {return mos_alpha_;};
-            const arma::mat& get_MOs_beta() const {return mos_beta_;};
-            arma::mat get_occupied_MOs_alpha() const;
-            arma::mat get_occupied_MOs_beta() const;
+struct CNDO2System : public System { // Real (13C NMR)
+private:
+  // F matrix + energy states
+  // Real matrices
+  RealMat p_alpha_, p_beta_;
+  RealMat f_alpha_, f_beta_;
+  RealMat mos_alpha_, mos_beta_;
+  RealVec E_alpha_, E_beta_;
 
-            arma::rowvec get_E_alpha() const {return E_alpha_.as_row();};
-            arma::rowvec get_E_beta() const {return E_beta_.as_row();};
+  // Shared real integrals between real and complex structs
+  CNDO2RealIntegrals I_;
 
-            double get_electron_density(const std::array<double,3>& position) const;
-            arma::cube get_electron_density_3d_grid(
-                const std::array<double,2>& x_range,
-                const std::array<double,2>& y_range,
-                const std::array<double,2>& z_range,
-                int nsamples_per_side
-            ) const;
-            
-            arma::mat compute_gamma_matrix();
-            arma::mat compute_reduced_gamma_matrix();
-            arma::mat compute_beta_matrix();
-            std::pair<arma::mat,arma::mat> compute_cndo_f_matrix();
-            arma::mat compute_h_core();
-            double compute_electronic_energy() override;
+  // Electron counts
+  double p_;
+  double q_;
 
-            arma::cube compute_overlap_matrix_gradient();
-            arma::cube compute_gamma_matrix_gradient();
-            arma::mat E_electronic_dRA();
-            arma::mat E_nuclear_dRA() ;
+  // Indo flag
+  bool use_indo_;
 
-            // Atom specific results
-            /* Get the electron density surrounding a specific atom */
-            double get_electron_density(size_t atom_idx) const;
-    };
+protected:
+  std::pair<RealMat, RealMat>
+  compute_cndo_f_matrix_internal(const RealMat &p_alpha, const RealMat &p_beta);
 
-    double distance(const Atom& a1, const Atom& a2);
-}
+public:
+  CNDO2System(const std::vector<Atom> &atoms, int p, int q, bool use_indo=false);
+  static CNDO2System
+  from_files(std::string atoms_filepath, std::string basis_directory, int p,
+             int q, DistanceUnits distance_units = DistanceUnits::BOHR, bool use_indo=false);
+
+  bool use_indo() const { return use_indo_; };
+  
+  void set_p(const RealMat &new_p_alpha, const RealMat &new_p_beta);
+  const RealMat &get_p_alpha() const { return p_alpha_; };
+  const RealMat &get_p_beta() const { return p_beta_; };
+
+  void set_f(const RealMat &new_f_alpha, const RealMat &new_f_beta);
+  const RealMat &get_f_alpha() const { return f_alpha_; };
+  const RealMat &get_f_beta() const { return f_beta_; };
+
+  void set_nelectrons(int p, int q) {
+    p_ = (double)p;
+    q_ = (double)q;
+  };
+  int get_nalpha() const { return (int)p_; };
+  int get_nbeta() const { return (int)q_; };
+
+  const RealMat &get_MOs_alpha() const { return mos_alpha_; };
+  const RealMat &get_MOs_beta() const { return mos_beta_; };
+  RealMat get_occupied_MOs_alpha() const;
+  RealMat get_occupied_MOs_beta() const;
+
+  RealRowVec get_E_alpha() const { return E_alpha_.as_row(); };
+  RealRowVec get_E_beta() const { return E_beta_.as_row(); };
+
+  CNDO2RealIntegrals &real_integrals() { return I_; }
+  const CNDO2RealIntegrals &real_integrals() const { return I_; }
+  const std::vector<Atom> &atoms() const { return atoms_; }
+
+  std::pair<RealMat, RealMat> compute_cndo_f_matrix();
+  RealMat compute_h_core();
+  double compute_electronic_energy() override;
+
+  /** Mulliken-like population on atom AOs from occupied MOs (used by NMR). */
+  double get_electron_density(size_t atom_idx) const;
+};
+
+double distance(const Atom &a1, const Atom &a2);
+
+// center of mass helper for getting the gauge origin
+std::array<double, 3> molecule_center_of_mass(const std::vector<Atom> &atoms);
+
+struct CNDO2SystemComplex : public System { // Complex (1H NMR)
+private:
+  struct AngularMomentumCacheKey {
+    std::array<std::array<uint64_t, 3>, 2> centers_bits;
+    std::array<std::array<char, 3>, 2> momenta;
+    std::array<char, 2> shells;
+    std::array<uint64_t, 3> gauge_origin_bits;
+    int coord_dir;
+    int deriv_dir;
+
+    bool operator==(const AngularMomentumCacheKey &other) const = default;
+  };
+
+  struct AngularMomentumCacheKeyHash {
+    size_t operator()(const AngularMomentumCacheKey &key) const;
+  };
+
+  // F matrix + energy states
+  // Complex types
+  ComplexMat p_alpha_, p_beta_;
+  ComplexMat f_alpha_, f_beta_;
+  ComplexMat mos_alpha_, mos_beta_;
+  RealVec E_alpha_, E_beta_;
+
+  // Shared real integrals between real and complex structs
+  CNDO2RealIntegrals I_;
+
+  // Electron counts
+  double p_;
+  double q_;
+
+  // Magnetic perturbation field
+  double lambda_ = 0.0;
+  int field_dir_ = 0; // x, y, or z
+
+  // INDO flag
+  bool use_indo_;
+
+  // Memoized one-electron angular momentum terms keyed by AO pair + gauge
+  // origin + Cartesian directions.
+  mutable std::unordered_map<AngularMomentumCacheKey, double,
+                             AngularMomentumCacheKeyHash>
+      angular_momentum_term_cache_;
+
+protected:
+  std::pair<ComplexMat, ComplexMat>
+  compute_cndo_f_matrix_internal(const ComplexMat &p_alpha,
+                                 const ComplexMat &p_beta);
+
+public:
+  CNDO2SystemComplex(const std::vector<Atom> &atoms, int p, int q, bool use_indo=false);
+  static CNDO2SystemComplex
+  from_files(std::string atoms_filepath, std::string basis_directory, int p,
+             int q, DistanceUnits distance_units = DistanceUnits::BOHR, bool use_indo=false);
+
+  bool use_indo() const { return use_indo_; };
+
+  void set_p(const ComplexMat &new_p_alpha, const ComplexMat &new_p_beta);
+  const ComplexMat &get_p_alpha() const { return p_alpha_; };
+  const ComplexMat &get_p_beta() const { return p_beta_; };
+
+  void set_f(const ComplexMat &new_f_alpha, const ComplexMat &new_f_beta);
+  const ComplexMat &get_f_alpha() const { return f_alpha_; };
+  const ComplexMat &get_f_beta() const { return f_beta_; };
+
+  void set_nelectrons(int p, int q) {
+    p_ = (double)p;
+    q_ = (double)q;
+  };
+  int get_nalpha() const { return (int)p_; };
+  int get_nbeta() const { return (int)q_; };
+
+  const ComplexMat &get_MOs_alpha() const { return mos_alpha_; };
+  const ComplexMat &get_MOs_beta() const { return mos_beta_; };
+  ComplexMat get_occupied_MOs_alpha() const;
+  ComplexMat get_occupied_MOs_beta() const;
+
+  RealRowVec get_E_alpha() const { return E_alpha_.as_row(); };
+  RealRowVec get_E_beta() const { return E_beta_.as_row(); };
+
+  CNDO2RealIntegrals &real_integrals() { return I_; }
+  const CNDO2RealIntegrals &real_integrals() const { return I_; }
+  const std::vector<Atom> &atoms() const { return atoms_; }
+
+  std::pair<ComplexMat, ComplexMat> compute_cndo_f_matrix();
+  ComplexMat compute_h_core();
+  double compute_electronic_energy() override;
+
+  void set_magnetic_field(int direction, double lambda) {
+    field_dir_ = direction;
+    lambda_ = lambda;
+  }
+
+  int get_field_dir() const { return field_dir_; }
+  double get_lambda() const { return lambda_; }
+
+  double calc_angular_momentum_term(const gaussian_lib::GaussianContracted &u,
+                                    const gaussian_lib::GaussianContracted &v,
+                                    const std::array<double, 3> &gauge_origin,
+                                    int coord_dir, int deriv_dir) const;
+
+  RealMat compute_angular_momentum_matrix(
+      int direction, const std::array<double, 3> &gauge_origin) const;
+
+  RealMat compute_shielding_operator_matrix(int direction,
+                                            size_t target_proton_idx) const;
+
+  RealMat compute_proton_shielding_tensor(size_t target_proton_idx,
+                                          double epsilon);
+};
+
+#include "fock.tpp"
+} // namespace system_lib
+
+#endif

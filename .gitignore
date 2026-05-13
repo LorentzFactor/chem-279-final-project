@@ -1,8 +1,10 @@
-# Build
+# Build (use ./build only; ignore ad-hoc dirs)
 build/
+build2/
+build_local/
+build_fresh/
 
-# Output
-student_output/
+# student_output/ is intentionally NOT gitignored (NMR plots + training CSV).
 
 # CMake stuff
 CMakeLists.txt.user

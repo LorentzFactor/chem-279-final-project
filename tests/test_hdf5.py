@@ -25,16 +25,20 @@ def compare_dataset(question_id, file_id, dataset_id, sample_output_dir, student
             f"Shape of reference data: {ref_data.shape} does not match shape of test data {test_data.shape}"
         )
         numpy.testing.assert_allclose(test_data, ref_data, rtol=1e-4, atol=1e-2) 
-
       
 @pytest.mark.parametrize("dataset_id", [
-    "Suv_RA", 
-    "gammaAB_RA", 
-    "gradient_nuclear",
-    "gradient_electronic",
-    "gradient",
+    "S", 
+    "gamma", 
+    "H_core",
+    "Fa_initial",
+    "Fb_initial",
+    "Ea",
+    "Eb", 
+    "electronic_energy", 
+    "nuclear_energy", 
+    "total_energy",
     ])
-@pytest.mark.parametrize("file_id", ["H2","HF","HO", "H2O"])
-@pytest.mark.parametrize("question_id", ["hw_5_2"])
+@pytest.mark.parametrize("file_id", ["H2","HF","HO"])
+@pytest.mark.parametrize("question_id", ["hw_5_1"])
 def test_hw_3_1(question_id, file_id, dataset_id, sample_output_dir, student_output_dir):
     compare_dataset(question_id, file_id, dataset_id, sample_output_dir, student_output_dir)

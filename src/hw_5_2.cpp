@@ -4,6 +4,7 @@
 #include <fstream>
 #include <iostream>
 #include <iomanip>
+#include <map>
 #include <stdexcept>
 #include <stdio.h>
 #include <stdlib.h>
@@ -28,10 +29,25 @@ void write_to_high_five(File output_file, std::string name, T data) {
 };
 
 int main(int argc, char **argv) {
-  // check that a config file is supplied
-  if (argc != 2) {
-    std::cerr << "Usage: " << argv[0] << " path/to/config.json" << std::endl;
+  // check that required args are supplied
+  if (argc < 2 || argc > 3) {
+    std::cerr << "Usage: " << argv[0]
+              << " path/to/config.json [--indo|--cndo]" << std::endl;
     return EXIT_FAILURE;
+  }
+
+  bool use_indo = false;
+  if (argc == 3) {
+    const std::string method_flag = argv[2];
+    if (method_flag == "--indo" || method_flag == "indo") {
+      use_indo = true;
+    } else if (method_flag == "--cndo" || method_flag == "cndo") {
+      use_indo = false;
+    } else {
+      std::cerr << "Unknown method flag: " << method_flag << "\n"
+                << "Use one of: --indo, --cndo" << std::endl;
+      return EXIT_FAILURE;
+    }
   }
 
   // parse the config file
@@ -43,13 +59,17 @@ int main(int argc, char **argv) {
   std::ifstream config_file(config_file_path);
   json config = json::parse(config_file);
 
+  std::cout << "Here" << std::endl;
+
   // extract the important info from the config file
   fs::path atoms_file_path = config["atoms_file_path"];
   fs::path output_file_path = config["output_file_path"];
   int num_alpha_electrons = config["num_alpha_electrons"];
   int num_beta_electrons = config["num_beta_electrons"];
 
-  system_lib::CNDO2System sys = system_lib::CNDO2System::from_files(atoms_file_path, "./basis", num_alpha_electrons, num_beta_electrons);
+  system_lib::CNDO2System sys = system_lib::CNDO2System::from_files(
+      atoms_file_path, "./basis", num_alpha_electrons, num_beta_electrons,
+      system_lib::DistanceUnits::BOHR, use_indo);
 
   int num_atoms = sys.num_atoms(); // You will have to replace this with the
                                       // number of atoms in the molecule
@@ -100,39 +120,31 @@ int main(int argc, char **argv) {
   //fixed_point::solve_cndo(sys);
 
   // Solve for ground state using diis method
-  diis::solve_cndo(sys);
+  diis::solve_cndo(sys, 1000, 1e-6, false, diis::InitialGuess::kAtomic);
 
   // compute Suv_RA
-  arma::cube Suv_RA_cube = sys.compute_overlap_matrix_gradient();
+  //arma::cube Suv_RA_cube = sys.compute_overlap_matrix_gradient();
 
   // Convert it to expected (2d) output format
-  Suv_RA = Suv_RA_cube.reshape(3, num_basis_functions*num_basis_functions, 1).slice(0);
+  //Suv_RA = Suv_RA_cube.reshape(3, num_basis_functions*num_basis_functions, 1).slice(0);
 
   // Do the same for gamma_RA
-  arma::cube gamma_RA_cube = sys.compute_gamma_matrix_gradient();
-  gammaAB_RA = gamma_RA_cube.reshape(3, num_atoms*num_atoms, 1).slice(0);
+  //arma::cube gamma_RA_cube = sys.compute_gamma_matrix_gradient();
+  //gammaAB_RA = gamma_RA_cube.reshape(3, num_atoms*num_atoms, 1).slice(0);
 
   // Compute electronic gradient
-  gradient_electronic = sys.E_electronic_dRA();
+  //gradient_electronic = sys.E_electronic_dRA();
 
   // Compute nuclear gradient
-  gradient_nuclear = sys.E_nuclear_dRA();
+  //gradient_nuclear = sys.E_nuclear_dRA();
 
   // Compute total gradient
-  gradient = gradient_electronic + gradient_nuclear;
+  //gradient = gradient_electronic + gradient_nuclear;
 
   // You do not need to modify the code below this point
 
   // Set print configs
   std::cout << std::fixed << std::setprecision(4) << std::setw(8) << std::right;
-
-  /*// inspect your answer via printing
-  Suv_RA.print("Suv_RA");
-  gammaAB_RA.print("gammaAB_RA");
-  gradient_nuclear.print("gradient_nuclear");
-  gradient_electronic.print("gradient_electronic");
-  gradient.print("gradient");
-  */
 
   // check that output dir exists
   if (!fs::exists(output_file_path.parent_path())) {
@@ -149,27 +161,27 @@ int main(int argc, char **argv) {
   File output_file(output_file_path.string(), File::Overwrite);
 
   // write results to file
-  Suv_RA.save(
-      arma::hdf5_name(output_file_path, "Suv_RA",
-                      arma::hdf5_opts::append + arma::hdf5_opts::trans));
-  gammaAB_RA.save(
-      arma::hdf5_name(output_file_path, "gammaAB_RA",
-                      arma::hdf5_opts::append + arma::hdf5_opts::trans));
-  gradient_nuclear.save(
-      arma::hdf5_name(output_file_path, "gradient_nuclear",
-                      arma::hdf5_opts::append + arma::hdf5_opts::trans));
-  gradient_electronic.save(
-      arma::hdf5_name(output_file_path, "gradient_electronic",
-                      arma::hdf5_opts::append + arma::hdf5_opts::trans));
-  gradient.save(
-      arma::hdf5_name(output_file_path, "gradient",
-                      arma::hdf5_opts::append + arma::hdf5_opts::trans));
 
-  write_to_high_five(output_file, "electronic_energy", sys.compute_electronic_energy());
-  write_to_high_five(output_file, "nuclear_energy", sys.compute_nuclear_energy());
-  write_to_high_five(output_file, "total_energy", sys.compute_total_energy());
+  
+  arma::mat h_core = sys.compute_h_core();
 
-  //arma::cube spatial_electron_density = sys.get_electron_density_3d_grid({-14, 5}, {-14, 5}, {-14, 5}, 100);
-  //spatial_electron_density.save(arma::hdf5_name(output_file_path, "spatial_density", arma::hdf5_opts::replace));
-  std::cout << "energy: " << sys.compute_total_energy() << std::endl;
+  double electronic_energy = sys.compute_electronic_energy();
+  double nuclear_energy = sys.compute_nuclear_energy();
+  double total_energy = sys.compute_total_energy();
+
+  arma::mat S = sys.compute_overlap_matrix();
+  //arma::mat reduced_gamma = sys.compute_reduced_gamma_matrix();
+  //arma::mat gamma = sys.compute_gamma_matrix();
+  //arma::mat beta = sys.compute_beta_matrix();
+
+  arma::rowvec Ea = sys.get_E_alpha();
+  arma::rowvec Eb = sys.get_E_beta();
+  Ea.save(arma::hdf5_name(output_file_path, "Ea", arma::hdf5_opts::replace));
+  Eb.save(arma::hdf5_name(output_file_path, "Eb", arma::hdf5_opts::replace));
+  h_core.save(arma::hdf5_name(output_file_path, "H_core", arma::hdf5_opts::replace));
+  S.save(arma::hdf5_name(output_file_path, "S", arma::hdf5_opts::replace));
+  //reduced_gamma.save(arma::hdf5_name(output_file_path, "gamma", arma::hdf5_opts::replace));    
+  write_to_high_five(output_file, "electronic_energy", electronic_energy);
+  //write_to_high_five(output_file, "nuclear_energy", nuclear_energy);
+  write_to_high_five(output_file, "total_energy", total_energy);
 }

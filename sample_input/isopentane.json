@@ -1,0 +1,21 @@
+{   
+    "atoms_file_path" : "atoms/isopentane_PCS2.xyz",
+    "output_file_path" : "student_output/isopentane_PCS2.hdf5",
+    "num_alpha_electrons" : 16,
+    "num_beta_electrons" : 16,
+    "distance_unit": "angstrom",
+    "reference_values": {
+            "takaishi_1974_chemical_shift": {
+                "1": 106.0,
+                "2": 98.78,
+                "3": 96.83,
+                "4": 116.23
+            },
+            "takaishi_1974_chemical_shift_experimental": {
+                "1": 106.67,
+                "2": 98.8,
+                "3": 96.88,
+                "4": 117.18
+            }
+    }
+}

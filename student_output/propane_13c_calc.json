@@ -1,0 +1,57 @@
+{
+  "carbons": [
+    {
+      "atom_index": 0,
+      "c_rank": 0,
+      "delta_ppm": 17.26054680131317,
+      "sigma_d": 68.04460543055616,
+      "sigma_p": -202.6090575902022,
+      "sigma_total": -134.56445215964607
+    },
+    {
+      "atom_index": 1,
+      "c_rank": 1,
+      "delta_ppm": 17.50255757609169,
+      "sigma_d": 68.1012157424976,
+      "sigma_p": -202.9076786769222,
+      "sigma_total": -134.8064629344246
+    },
+    {
+      "atom_index": 2,
+      "c_rank": 2,
+      "delta_ppm": 17.49866912112269,
+      "sigma_d": 68.10120953721216,
+      "sigma_p": -202.90378401666774,
+      "sigma_total": -134.8025744794556
+    }
+  ],
+  "groups": [
+    {
+      "atom_indices": [
+        0
+      ],
+      "carbon_slot_indices": [
+        0
+      ],
+      "delta_avg_ppm": 17.26054680131317,
+      "n_carbons": 1,
+      "peak_index": 1
+    },
+    {
+      "atom_indices": [
+        2,
+        1
+      ],
+      "carbon_slot_indices": [
+        2,
+        1
+      ],
+      "delta_avg_ppm": 17.50061334860719,
+      "n_carbons": 2,
+      "peak_index": 2
+    }
+  ],
+  "molecule_label": "propane",
+  "reference_sigma_avg_ppm": -117.3039053583329,
+  "shift_grouping_tol_ppm": 0.2
+}

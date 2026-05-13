@@ -1,0 +1,86 @@
+{
+  "carbons": [
+    {
+      "atom_index": 0,
+      "c_rank": 0,
+      "delta_ppm": 30.648340735892788,
+      "sigma_d": 68.06080350033272,
+      "sigma_p": -216.01336603103704,
+      "sigma_total": -147.9525625307043
+    },
+    {
+      "atom_index": 1,
+      "c_rank": 1,
+      "delta_ppm": 34.7745958914131,
+      "sigma_d": 68.04003614351815,
+      "sigma_p": -220.11885382974276,
+      "sigma_total": -152.07881768622462
+    },
+    {
+      "atom_index": 2,
+      "c_rank": 2,
+      "delta_ppm": 30.646343906258636,
+      "sigma_d": 68.06080551716069,
+      "sigma_p": -216.01137121823083,
+      "sigma_total": -147.95056570107016
+    },
+    {
+      "atom_index": 3,
+      "c_rank": 3,
+      "delta_ppm": 33.23664134175587,
+      "sigma_d": 68.1287215055974,
+      "sigma_p": -218.66958464216478,
+      "sigma_total": -150.5408631365674
+    },
+    {
+      "atom_index": 4,
+      "c_rank": 4,
+      "delta_ppm": 33.23817398700655,
+      "sigma_d": 68.12871639718527,
+      "sigma_p": -218.67111217900333,
+      "sigma_total": -150.54239578181807
+    }
+  ],
+  "groups": [
+    {
+      "atom_indices": [
+        2,
+        0
+      ],
+      "carbon_slot_indices": [
+        2,
+        0
+      ],
+      "delta_avg_ppm": 30.647342321075712,
+      "n_carbons": 2,
+      "peak_index": 1
+    },
+    {
+      "atom_indices": [
+        3,
+        4
+      ],
+      "carbon_slot_indices": [
+        3,
+        4
+      ],
+      "delta_avg_ppm": 33.23740766438121,
+      "n_carbons": 2,
+      "peak_index": 2
+    },
+    {
+      "atom_indices": [
+        1
+      ],
+      "carbon_slot_indices": [
+        1
+      ],
+      "delta_avg_ppm": 34.7745958914131,
+      "n_carbons": 1,
+      "peak_index": 3
+    }
+  ],
+  "molecule_label": "n-pentane",
+  "reference_sigma_avg_ppm": -117.30422179481153,
+  "shift_grouping_tol_ppm": 0.2
+}
