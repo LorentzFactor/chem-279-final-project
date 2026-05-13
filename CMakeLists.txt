@@ -97,10 +97,12 @@ target_include_directories(gaussian_lib PUBLIC ${PROJECT_SOURCE_DIR}/src)
 target_include_directories(system_lib PUBLIC ${PROJECT_SOURCE_DIR}/src)
 target_include_directories(solver_lib PUBLIC ${PROJECT_SOURCE_DIR}/src)
 target_include_directories(nmr_lib PUBLIC ${PROJECT_SOURCE_DIR}/src)
+
 add_executable(nmr_13c_calc src/nmr_13C_calculator.cpp)
 add_executable(nmr_1h_calc src/nmr_1H_calculator.cpp)
 add_executable(nmr_1h_training_export src/nmr_1h_training_export.cpp)
 add_executable(molecule_energy_calc src/molecule_energy_calculator.cpp)
+add_executable(hw_5_2 src/hw_5_2.cpp)
 
 target_link_libraries(gaussian_lib PRIVATE integration_tools)
 target_link_libraries(system_lib PRIVATE gaussian_lib)
@@ -120,11 +122,19 @@ target_link_libraries(nmr_1h_training_export PRIVATE solver_lib)
 target_link_libraries(molecule_energy_calc PRIVATE system_lib)
 target_link_libraries(molecule_energy_calc PRIVATE solver_lib)
 
+target_link_libraries(hw_5_2 PRIVATE system_lib)
+target_link_libraries(hw_5_2 PRIVATE solver_lib)
+
 enable_testing()
 
 add_executable(
   nmr_test
   tests/cpp_tests/nmr_test.cpp
+)
+
+add_executable(
+  hw_5_2_output_test
+  tests/cpp_tests/hw_5_2_output_test.cpp
 )
 
 target_link_libraries(
@@ -135,5 +145,16 @@ target_link_libraries(
   nmr_lib
 )
 
+target_link_libraries(
+  hw_5_2_output_test
+  GTest::gtest_main
+)
+
+target_compile_definitions(
+  hw_5_2_output_test
+  PRIVATE HW_5_2_EXECUTABLE_PATH="$<TARGET_FILE:hw_5_2>"
+)
+
 include(GoogleTest)
 gtest_discover_tests(nmr_test)
+gtest_discover_tests(hw_5_2_output_test)
