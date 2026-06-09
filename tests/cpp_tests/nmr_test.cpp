@@ -45,3 +45,33 @@ TEST_F(MethaneFixture, SigmaCalculation) {
   EXPECT_NEAR(sigma_d, 68.1632, 1e-2);
   EXPECT_NEAR(sigma, -117.3042, 1e-2);
 }
+
+TEST(DIISConvergence, CaffeineConvergesForCNDOAndINDO) {
+  const fs::path root = repo_root();
+  const fs::path atoms_path = root / "atoms" / "caffeine.xyz";
+  const fs::path basis_path = root / "basis";
+
+  ASSERT_TRUE(fs::exists(atoms_path)) << "Missing atoms file: " << atoms_path;
+
+  CNDO2System cndo_sys = CNDO2System::from_files(
+      atoms_path.string(),
+      basis_path.string(),
+      37,
+      37,
+      DistanceUnits::BOHR,
+      false);
+  int cndo_iters = 0;
+  EXPECT_NO_THROW(cndo_iters = diis::solve_cndo(cndo_sys));
+  EXPECT_GT(cndo_iters, 0);
+
+  CNDO2System indo_sys = CNDO2System::from_files(
+      atoms_path.string(),
+      basis_path.string(),
+      37,
+      37,
+      DistanceUnits::BOHR,
+      true);
+  int indo_iters = 0;
+  EXPECT_NO_THROW(indo_iters = diis::solve_cndo(indo_sys));
+  EXPECT_GT(indo_iters, 0);
+}
