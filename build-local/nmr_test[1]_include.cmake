@@ -1,5 +1,0 @@
-if(EXISTS "/mnt/c/Work/279_Quantum/Project/chem-279-final-project/build-local/nmr_test[1]_tests.cmake")
-  include("/mnt/c/Work/279_Quantum/Project/chem-279-final-project/build-local/nmr_test[1]_tests.cmake")
-else()
-  add_test(nmr_test_NOT_BUILT nmr_test_NOT_BUILT)
-endif()
