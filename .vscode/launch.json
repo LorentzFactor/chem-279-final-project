@@ -5,10 +5,34 @@
     "version": "0.2.0",
     "configurations": [
         {
+            "name": "Debug HW 5 HF",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/build/hw_5_2",
+            "args": ["sample_input/HF.json"],
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}",
+            "environment": [],
+            "externalConsole": false,
+            "MIMode": "gdb",
+            "setupCommands": [
+                {
+                    "description": "Enable pretty-printing for gdb",
+                    "text": "-enable-pretty-printing",
+                    "ignoreFailures": true
+                },
+                {
+                    "description": "Set Disassembly Flavor to Intel",
+                    "text": "-gdb-set disassembly-flavor intel",
+                    "ignoreFailures": true
+                }
+            ]
+        },
+        {
             "name": "Debug H2 Energy CNDO",
             "type": "cppdbg",
             "request": "launch",
-            "program": "./build/molecule_energy_calc",
+            "program": "${workspaceFolder}/build/molecule_energy_calc",
             "args": [ "--cndo", "sample_input/H2.json"],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}",
